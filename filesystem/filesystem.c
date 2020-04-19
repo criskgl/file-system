@@ -15,13 +15,25 @@
 #include "filesystem/auxiliary.h"  // Headers for auxiliary functions
 #include "filesystem/metadata.h"   // Type and structure declaration of the file system
 
+SuperBlock superblock;
+
 /*
  * @brief 	Generates the proper file system structure in a storage device, as designed by the student.
  * @return 	0 if success, -1 otherwise.
  */
-int mkFS(long deviceSize)
-{
-	return -1;
+int mkFS(long deviceSize) { 
+
+	printf("%ld",deviceSize);
+
+	if (deviceSize < MIN_DEV_SIZE || deviceSize > MAX_DEV_SIZE) return -1;
+
+	superblock.magic_number = 1234;
+	superblock.total_blocks = MAX_DEV_SIZE/BLOCK_SIZE; // 300 Blocks
+	superblock.inode_blocks = BLOCK_SIZE/sizeof(INode);
+	superblock.inodes = MAX_FILES;
+
+	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(superblock))) == -1) return -1; 	
+	return 0; 
 }
 
 /*
