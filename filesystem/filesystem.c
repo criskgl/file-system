@@ -16,7 +16,6 @@
 #include "filesystem/metadata.h"   // Type and structure declaration of the file system
 
 #include <stdlib.h>
-
 SuperBlock superblock;
 
 /*
@@ -30,16 +29,29 @@ int mkFS(long deviceSize) {
 	if (deviceSize < MIN_DEV_SIZE || deviceSize > MAX_DEV_SIZE) return -1;
 
 	superblock.magic_number = 1234;
-	superblock.total_blocks = MAX_DEV_SIZE/BLOCK_SIZE; // 300 Blocks
+	superblock.total_blocks = deviceSize/BLOCK_SIZE;
 	superblock.inode_blocks = BLOCK_SIZE/sizeof(INode);
 	superblock.inodes = MAX_FILES;
 
+	//char bitmap[(superblock.total_blocks/8*sizeof(char)) + 1];
+	//printf("%ld\n", sizeof(bitmap));
 	char bitmap[38];
-	
-	for(int i = 0; i < superblock.total_blocks; i++){
-		bitmap_setbit (bitmap, i, 0);
+	//initialize values in bitmap to 0
+	for(int i = 0; i < 300; i++){
+		bitmap_setbit (bitmap, i, USED);
 	}
-	//printf("%lu",sizeof(bitmap));
+	//declare extra bit in imap as used to always ignore them
+	for(int i = superblock.total_blocks; i < sizeof(bitmap)*8; i++){ 
+		//printf("%d\n", i);
+		bitmap_setbit (bitmap, i, 1);
+	}
+
+	//int val = bitmap_getbit (bitmap, 302);
+	//printf ("%d\n", val);
+	for(int i = 0; i < 304; i++){
+		int val = bitmap_getbit (bitmap, i);
+		printf ("%d\n", val);
+	}
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(superblock))) == -1) return -1; 	
 	return 0; 
 }
