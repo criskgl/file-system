@@ -39,7 +39,6 @@ int bread(char *deviceName, int blockNumber, char *buffer) {
 	}
 
 	lseek(fd, BLOCK_SIZE*blockNumber, SEEK_SET);
-
 	int total_read, read_result;
 
 	total_read = 0;
