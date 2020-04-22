@@ -10,12 +10,17 @@
  *
  */
 
-
 #include "filesystem/filesystem.h" // Headers for the core functionality
 #include "filesystem/auxiliary.h"  // Headers for auxiliary functions
 #include "filesystem/metadata.h"   // Type and structure declaration of the file system
 #include <stdlib.h>
 #include <string.h>
+
+// Data structures stored in memory when fs is mounted
+int mounted = 0;
+SuperBlock superblock;
+INode inodes[MAX_FILES];
+BitMap bitmap;
 
 /*
  * @brief 	Generates the proper file system structure in a storage device, as designed by the student.
@@ -26,38 +31,36 @@ int mkFS(long deviceSize) {
 	if (deviceSize < MIN_DEV_SIZE || deviceSize > MAX_DEV_SIZE) return -1;
 
 	//Define basic structures for file system
-	SuperBlock superblock;
- 	INode inodes[MAX_FILES]; 
-	BitMap bitMap;
+	SuperBlock superblock_tmp;
+ 	INode inodes_tmp[MAX_FILES]; 
+	BitMap bitmap_tmp;
 
 	//Create buffer to write a full block of disk with previously defined structures
 	char block_buffer[BLOCK_SIZE];
 
 	//Fill up superblock parameters
-	superblock.magic_number = 1234;
-	superblock.total_blocks = deviceSize/BLOCK_SIZE;
-	superblock.inode_blocks = BLOCK_SIZE/sizeof(INode);
-	superblock.inodes = MAX_FILES;
+	superblock_tmp.magic_number = 1234;
+	superblock_tmp.total_blocks = deviceSize/BLOCK_SIZE;
+	superblock_tmp.inode_blocks = BLOCK_SIZE/sizeof(INode);
+	superblock_tmp.inodes = MAX_FILES;
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
-		inodes[i] = (INode){NULL,FREE,0,{}};
+		inodes_tmp[i] = (INode){NULL,FREE,0,{}};
 	}
 
-	printf("%ld", sizeof(inodes[0]));
-
 	//Declare bitmap size
-	bitMap.size = superblock.total_blocks/(8*sizeof(char)) + 1;
-	bitMap.map = malloc(bitMap.size);
+	bitmap_tmp.size = superblock_tmp.total_blocks/(8*sizeof(char)) + 1;
+	bitmap_tmp.map = malloc(bitmap_tmp.size);
 
 	//Set all blocks to FREE in bitmap
-	for(int i = 0; i < bitMap.size*8; i++){
-		bitmap_setbit(bitMap.map, i, FREE);
+	for(int i = 0; i < bitmap_tmp.size*8; i++){
+		bitmap_setbit(bitmap_tmp.map, i, FREE);
 	}
 	
 	//Declare extra bit in imap as used to always ignore them
-	for(int i = superblock.total_blocks; i < bitMap.size*8; i++){ 
-		bitmap_setbit(bitMap.map, i, USED);
+	for(int i = superblock_tmp.total_blocks; i < bitmap_tmp.size*8; i++){ 
+		bitmap_setbit(bitmap_tmp.map, i, USED);
 	}
 
 	//Pad the rest of the block
@@ -66,9 +69,9 @@ int mkFS(long deviceSize) {
 	}
 
 	//Write structures to disk
-	memcpy(&block_buffer,&superblock,sizeof(SuperBlock));
-	memcpy(&block_buffer[sizeof(SuperBlock)],bitMap.map,bitMap.size);
-	memcpy(&block_buffer[sizeof(SuperBlock)+bitMap.size],&inodes,sizeof(INode)*MAX_FILES);
+	memcpy(&block_buffer,&superblock_tmp,sizeof(SuperBlock));
+	memcpy(&block_buffer[sizeof(SuperBlock)],bitmap_tmp.map,bitmap_tmp.size);
+	memcpy(&block_buffer[sizeof(SuperBlock)+bitmap_tmp.size],&inodes_tmp,sizeof(INode)*MAX_FILES);
 
 	//Write buffer to disk
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
@@ -83,7 +86,21 @@ int mkFS(long deviceSize) {
  */
 int mountFS(void)
 {
-	return -1;
+	//Save first block of disk in memory
+	char block_buffer[BLOCK_SIZE];
+	if (bread(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
+
+	//Fill up memory structures from block buffer
+	memcpy(&superblock, &block_buffer,sizeof(superblock));
+	bitmap.size = superblock.total_blocks/(8*sizeof(char)) + 1;
+	bitmap.map = malloc(bitmap.size);
+	memcpy(bitmap.map, &block_buffer[sizeof(superblock)], bitmap.size);
+	memcpy(&inodes, &block_buffer[sizeof(superblock)+bitmap.size], sizeof(INode)*superblock.inodes);
+
+	//Mark device as mounted
+	mounted = 1;
+
+	return 0;
 }
 
 /*
@@ -93,6 +110,28 @@ int mountFS(void)
  */
 int unmountFS(void)
 {
+	char block_buffer[BLOCK_SIZE];
+	superblock.magic_number = 4321;
+	//Write data back to disk
+	memcpy(&block_buffer,&superblock,sizeof(SuperBlock));
+	memcpy(&block_buffer[sizeof(SuperBlock)],bitmap.map,bitmap.size);
+	memcpy(&block_buffer[sizeof(SuperBlock)+bitmap.size],&inodes,sizeof(INode)*MAX_FILES);
+
+	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
+
+	//Free up memory used
+	if(mounted == 1){
+
+		free(bitmap.map);
+
+		for(int i=0; i<superblock.inodes; i++){
+			free(inodes[i].file_name);
+		}
+
+		mounted = 0;
+		return 0;
+	}
+	
 	return -1;
 }
 
@@ -102,6 +141,7 @@ int unmountFS(void)
  */
 int createFile(char *fileName)
 {
+	//TODO
 	return -2;
 }
 
