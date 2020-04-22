@@ -14,9 +14,8 @@
 #include "filesystem/filesystem.h" // Headers for the core functionality
 #include "filesystem/auxiliary.h"  // Headers for auxiliary functions
 #include "filesystem/metadata.h"   // Type and structure declaration of the file system
-
 #include <stdlib.h>
-SuperBlock superblock;
+#include <string.h>
 
 /*
  * @brief 	Generates the proper file system structure in a storage device, as designed by the student.
@@ -24,35 +23,56 @@ SuperBlock superblock;
  */
 int mkFS(long deviceSize) { 
 
-	
-
 	if (deviceSize < MIN_DEV_SIZE || deviceSize > MAX_DEV_SIZE) return -1;
 
+	//Define basic structures for file system
+	SuperBlock superblock;
+ 	INode inodes[MAX_FILES]; 
+	BitMap bitMap;
+
+	//Create buffer to write a full block of disk with previously defined structures
+	char block_buffer[BLOCK_SIZE];
+
+	//Fill up superblock parameters
 	superblock.magic_number = 1234;
 	superblock.total_blocks = deviceSize/BLOCK_SIZE;
 	superblock.inode_blocks = BLOCK_SIZE/sizeof(INode);
 	superblock.inodes = MAX_FILES;
 
-	//char bitmap[(superblock.total_blocks/8*sizeof(char)) + 1];
-	//printf("%ld\n", sizeof(bitmap));
-	char bitmap[38];
-	//initialize values in bitmap to 0
-	for(int i = 0; i < 300; i++){
-		bitmap_setbit (bitmap, i, USED);
-	}
-	//declare extra bit in imap as used to always ignore them
-	for(int i = superblock.total_blocks; i < sizeof(bitmap)*8; i++){ 
-		//printf("%d\n", i);
-		bitmap_setbit (bitmap, i, 1);
+	//Create array of Inodes
+	for(int i=0; i<MAX_FILES; i++){
+		inodes[i] = (INode){NULL,FREE,0,{}};
 	}
 
-	//int val = bitmap_getbit (bitmap, 302);
-	//printf ("%d\n", val);
-	for(int i = 0; i < 304; i++){
-		int val = bitmap_getbit (bitmap, i);
-		printf ("%d\n", val);
+	printf("%ld", sizeof(inodes[0]));
+
+	//Declare bitmap size
+	bitMap.size = superblock.total_blocks/(8*sizeof(char)) + 1;
+	bitMap.map = malloc(bitMap.size);
+
+	//Set all blocks to FREE in bitmap
+	for(int i = 0; i < bitMap.size*8; i++){
+		bitmap_setbit(bitMap.map, i, FREE);
 	}
-	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(superblock))) == -1) return -1; 	
+	
+	//Declare extra bit in imap as used to always ignore them
+	for(int i = superblock.total_blocks; i < bitMap.size*8; i++){ 
+		bitmap_setbit(bitMap.map, i, USED);
+	}
+
+	//Pad the rest of the block
+	for(int i=0; i<sizeof(block_buffer); i++){
+		block_buffer[i] = 'X';
+	}
+
+	//Write structures to disk
+	memcpy(&block_buffer,&superblock,sizeof(SuperBlock));
+	memcpy(&block_buffer[sizeof(SuperBlock)],bitMap.map,bitMap.size);
+	memcpy(&block_buffer[sizeof(SuperBlock)+bitMap.size],&inodes,sizeof(INode)*MAX_FILES);
+
+	//Write buffer to disk
+	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
+
 	return 0; 
 }
 

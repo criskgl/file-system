@@ -17,7 +17,7 @@
 #define MIN_DEV_SIZE 471040 //NF6
 #define MAX_DEV_SIZE 614400 //NF6
 #define FREE 0
-#define USED 2
+#define USED 1
 
 #define bitmap_getbit(bitmap_, i_) (bitmap_[i_ >> 3] & (1 << (i_ & 0x07)))
 static inline void bitmap_setbit(char *bitmap_, int i_, int val_) {
@@ -34,6 +34,11 @@ typedef struct SuperBlock{
   unsigned int inodes;
   char padding[];
 } SuperBlock;
+
+typedef struct BitMap{
+  unsigned int size;
+  char * map;
+} BitMap;
 
 typedef struct INode{
   char * file_name;
