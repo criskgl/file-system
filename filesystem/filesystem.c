@@ -35,18 +35,17 @@ int mkFS(long deviceSize) {
  	INode inodes_tmp[MAX_FILES]; 
 	BitMap bitmap_tmp;
 
-	//Create buffer to write a full block of disk with previously defined structures
-	char block_buffer[BLOCK_SIZE];
+	//Create buffer to write 2 full blocks of disk with previously defined structures
+	char block_buffer[BLOCK_SIZE*2];
 
 	//Fill up superblock parameters
-	superblock_tmp.magic_number = 1234;
 	superblock_tmp.total_blocks = deviceSize/BLOCK_SIZE;
 	superblock_tmp.inode_blocks = BLOCK_SIZE/sizeof(INode);
 	superblock_tmp.inodes = MAX_FILES;
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
-		inodes_tmp[i] = (INode){NULL,FREE,0,{}};
+		inodes_tmp[i] = (INode){ "123456789012345678901234567890.t\0",FREE,0,{}};
 	}
 
 	//Declare bitmap size
@@ -70,12 +69,11 @@ int mkFS(long deviceSize) {
 
 	//Write structures to disk
 	memcpy(&block_buffer,&superblock_tmp,sizeof(SuperBlock));
-	memcpy(&block_buffer[sizeof(SuperBlock)],bitmap_tmp.map,bitmap_tmp.size);
-	memcpy(&block_buffer[sizeof(SuperBlock)+bitmap_tmp.size],&inodes_tmp,sizeof(INode)*MAX_FILES);
-
+	memcpy(&block_buffer[sizeof(superblock_tmp)],bitmap_tmp.map,bitmap_tmp.size);
+	memcpy(&block_buffer[sizeof(superblock_tmp)+bitmap_tmp.size],&inodes_tmp,sizeof(INode)*MAX_FILES);
 	//Write buffer to disk
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
-
+	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[2048]))) == -1) return -1;
 	return 0; 
 }
 
@@ -86,9 +84,12 @@ int mkFS(long deviceSize) {
  */
 int mountFS(void)
 {
-	//Save first block of disk in memory
-	char block_buffer[BLOCK_SIZE];
+	//TODO-Check for incoming errors in disk.
+
+	//Save 2 first blocks of disk in memory (structures)
+	char block_buffer[BLOCK_SIZE*2];
 	if (bread(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
+	if (bread(DEVICE_IMAGE, 1, ((char *)&(block_buffer[2048]))) == -1) return -1;
 
 	//Fill up memory structures from block buffer
 	memcpy(&superblock, &block_buffer,sizeof(superblock));
@@ -96,7 +97,6 @@ int mountFS(void)
 	bitmap.map = malloc(bitmap.size);
 	memcpy(bitmap.map, &block_buffer[sizeof(superblock)], bitmap.size);
 	memcpy(&inodes, &block_buffer[sizeof(superblock)+bitmap.size], sizeof(INode)*superblock.inodes);
-
 	//Mark device as mounted
 	mounted = 1;
 
@@ -110,28 +110,28 @@ int mountFS(void)
  */
 int unmountFS(void)
 {
-	char block_buffer[BLOCK_SIZE];
-	superblock.magic_number = 4321;
-	//Write data back to disk
+	//TODO - use superblock.blocksize
+
+	char block_buffer[BLOCK_SIZE*2];
+	//Pad the rest of the block
+	for(int i=0; i<sizeof(block_buffer); i++){
+		block_buffer[i] = 'X';
+	}
+	//Write data structures back to disk
 	memcpy(&block_buffer,&superblock,sizeof(SuperBlock));
 	memcpy(&block_buffer[sizeof(SuperBlock)],bitmap.map,bitmap.size);
 	memcpy(&block_buffer[sizeof(SuperBlock)+bitmap.size],&inodes,sizeof(INode)*MAX_FILES);
 
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
+	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[BLOCK_SIZE]))) == -1) return -1;
 
 	//Free up memory used
 	if(mounted == 1){
-
 		free(bitmap.map);
-
-		for(int i=0; i<superblock.inodes; i++){
-			free(inodes[i].file_name);
-		}
-
 		mounted = 0;
 		return 0;
 	}
-	
+
 	return -1;
 }
 
@@ -142,7 +142,10 @@ int unmountFS(void)
 int createFile(char *fileName)
 {
 	//TODO
-	return -2;
+	//Check if filename does not already exist
+	//Check for free inode scanning through inodes array
+
+	return 0;
 }
 
 /*

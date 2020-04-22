@@ -28,21 +28,19 @@ static inline void bitmap_setbit(char *bitmap_, int i_, int val_) {
 }
 
 typedef struct SuperBlock{
-  unsigned short int magic_number;
-  unsigned int total_blocks;
-  unsigned int inode_blocks;
-  unsigned int inodes;
-  char padding[];
-} SuperBlock;
+  unsigned short total_blocks;
+  unsigned short inode_blocks;
+  unsigned short inodes;
+} SuperBlock;//6 Bytes
 
 typedef struct BitMap{
-  unsigned int size;
+  unsigned short size;
   char * map;
-} BitMap;
+} BitMap;//40 Bytes (including char* content)
 
 typedef struct INode{
-  char * file_name;
-  unsigned short int status;
-  unsigned int size;
-  unsigned short int data_blocks[5];
+  char file_name[33];
+  unsigned short status;
+  unsigned short size;//size of file
+  unsigned short data_blocks[5];
 } INode;
