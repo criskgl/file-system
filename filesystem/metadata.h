@@ -31,7 +31,6 @@ typedef struct SuperBlock{
   unsigned short total_blocks;
   unsigned short inode_blocks;
   unsigned short inodes;
-  int blocksize;
 } SuperBlock;//6 Bytes
 
 typedef struct BitMap{

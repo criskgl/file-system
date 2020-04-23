@@ -43,7 +43,6 @@ int mkFS(long deviceSize) {
 	superblock_tmp.total_blocks = deviceSize/BLOCK_SIZE;
 	superblock_tmp.inode_blocks = BLOCK_SIZE/sizeof(INode);
 	superblock_tmp.inodes = MAX_FILES;
-	superblock.blocksize = BLOCK_SIZE;
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
@@ -90,7 +89,7 @@ int mountFS(void)
 	//TODO::Check for incoming errors in disk.
 
 	//Save 2 first blocks of disk in memory (structures)
-	char block_buffer[superblock.blocksize*2];
+	char block_buffer[BLOCK_SIZE*2];
 	if (bread(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
 	if (bread(DEVICE_IMAGE, 1, ((char *)&(block_buffer[2048]))) == -1) return -1;
 
@@ -100,7 +99,6 @@ int mountFS(void)
 	bitmap.map = malloc(bitmap.size);
 	memcpy(bitmap.map, &block_buffer[sizeof(superblock)], bitmap.size);
 	memcpy(&inodes, &block_buffer[sizeof(superblock)+bitmap.size], sizeof(INode)*superblock.inodes);
-	
 	//Mark device as mounted
 	mounted = 1;
 
@@ -114,7 +112,7 @@ int mountFS(void)
  */
 int unmountFS(void)
 {
-	char block_buffer[superblock.blocksize*2];
+	char block_buffer[BLOCK_SIZE*2];
 
 	//Pad the rest of the block
 	for(int i=0; i<sizeof(block_buffer); i++){
@@ -128,7 +126,7 @@ int unmountFS(void)
 
 	//Write data structures back to first 2 blocks of disk
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
-	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[superblock.blocksize]))) == -1) return -1;
+	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[BLOCK_SIZE]))) == -1) return -1;
 
 	//Free up memory used
 	if(mounted == 1){
@@ -190,7 +188,7 @@ int removeFile(char *fileName)
 
 	//reset the block in disk
 	int blocksInInode = sizeof(inodes[iNodeIndex].data_blocks)/sizeof(inodes[iNodeIndex].data_blocks[0]);
-	char * block_buffer = malloc(superblock.blocksize); 
+	char * block_buffer = malloc(BLOCK_SIZE); 
 	for(int i=0; i<sizeof(block_buffer); i++){
 		block_buffer[i] = 'D';
 	}
@@ -273,6 +271,8 @@ int closeFile(int fileDescriptor)
  */
 int readFile(int fileDescriptor, void *buffer, int numBytes)
 {
+	return -1;
+	/*
 	//TODO: readFile
 	//check if fileDescriptor is valid
 	int fd = -1;
@@ -289,6 +289,7 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 
 
 	return -1;
+	*/
 }
 
 /*

@@ -118,7 +118,7 @@ int main()
 
 	///////
 	fileWasDeleted();
-
+	
 	ret = unmountFS();
 	if (ret != 0)
 	{
