@@ -57,7 +57,10 @@ int mkFS(long deviceSize) {
 	for(int i = 0; i < bitmap_tmp.size*8; i++){
 		bitmap_setbit(bitmap_tmp.map, i, FREE);
 	}
-	
+	//Set first two blocks as used
+	bitmap_setbit(bitmap_tmp.map, 0, USED);
+	bitmap_setbit(bitmap_tmp.map, 1, USED);
+
 	//Declare extra bit in imap as used to always ignore them
 	for(int i = superblock_tmp.total_blocks; i < bitmap_tmp.size*8; i++){ 
 		bitmap_setbit(bitmap_tmp.map, i, USED);
@@ -187,17 +190,25 @@ int removeFile(char *fileName)
 	if(iNodeIndex < 0) return -1;//file does not exist: error code -1 
 
 	//reset the block in disk
-	int blocksInInode = sizeof(inodes[iNodeIndex].data_blocks)/sizeof(inodes[iNodeIndex].data_blocks[0]);
 	char * block_buffer = malloc(BLOCK_SIZE); 
 	for(int i=0; i<sizeof(block_buffer); i++){
 		block_buffer[i] = 'D';
 	}
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
 
-	//clean bitmap
-	for(int i = 0; i < blocksInInode; i++){	
-		bitmap_setbit(bitmap.map, i, FREE);
+	//clean bitmap only when needed
+	if(inodes[iNodeIndex].size > 0){
+		int blocksOccupiedInInode;
+		if(inodes[iNodeIndex].size%BLOCK_SIZE == 0){
+			blocksOccupiedInInode = inodes[iNodeIndex].size/BLOCK_SIZE;
+		}else{
+			blocksOccupiedInInode = inodes[iNodeIndex].size/BLOCK_SIZE + 1;
+		}
+		for(int i = 0; i < blocksOccupiedInInode; i++){	
+			bitmap_setbit(bitmap.map, inodes[iNodeIndex].data_blocks[i], FREE);
+		}
 	}
+
 
 	//clean inode
 	inodes[iNodeIndex] = (INode){"",FREE,0,{}};
@@ -317,7 +328,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 	if(numBytes+fileEntry.offset > BLOCK_SIZE*superblock.inode_blocks) return -1;
 
 	//Allocate enough data blocks in iNode to write all bytes
-	int blockIndex = fileEntry.offset/BLOCK_SIZE + 1; 
+	int blockIndex = inodes[inode_index].size/BLOCK_SIZE; 
 	for(int i=0; i < bitmap.size*8; i++){
 		if(blockIndex > (numBytes+fileEntry.offset)/BLOCK_SIZE) break;
 		if(bitmap_getbit(bitmap.map,i) == 0){
