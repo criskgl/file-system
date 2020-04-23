@@ -273,6 +273,21 @@ int closeFile(int fileDescriptor)
  */
 int readFile(int fileDescriptor, void *buffer, int numBytes)
 {
+	//TODO: readFile
+	//check if fileDescriptor is valid
+	int fd = -1;
+	for(int i = 0; i < MAX_FILES; i++){
+		if(filetable.entries[i].fd == fileDescriptor){
+			fd = i;
+			break;
+		}
+	}
+	if(fd < 0) return -1;//fileDescriptor was not found in fileTable
+
+	//read block using offset bytes into buffer
+	if (bread(DEVICE_IMAGE, 0, ((char *)&(buffer[filetable.entries[fileDescriptor].offset]))) == -1) return -1;
+
+
 	return -1;
 }
 
@@ -282,6 +297,7 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int writeFile(int fileDescriptor, void *buffer, int numBytes)
 {
+	
 	return -1;
 }
 
