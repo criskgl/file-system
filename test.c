@@ -26,7 +26,7 @@
 #define DEV_SIZE N_BLOCKS *BLOCK_SIZE // Device size, in bytes
 
 
-void fileNameAlreadyExists(){ //Id: 1
+void fileNameAlreadyExists(){ 
     char* filename1 = "file.txt";
     createFile(filename1);
     char * filename2 = "file.txt";
@@ -40,7 +40,7 @@ void fileNameAlreadyExists(){ //Id: 1
 	}
 }
 
-void fileWasDeleted(){ //Id: 2
+void fileWasDeleted(){ 
 	char* filename1 = "deleteme.txt";
     createFile(filename1);
 	int ret = removeFile(filename1);
@@ -51,6 +51,18 @@ void fileWasDeleted(){ //Id: 2
     	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST fileWasDeleted ", ANSI_COLOR_RED, "FAILED: filename not found\n", ANSI_COLOR_RESET);
 	}else{
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST fileWasDeleted ", ANSI_COLOR_RED, "FAILED: no suggestion\n", ANSI_COLOR_RESET);
+	}
+}
+
+void testOpenFile(){ 
+	char* filename1 = "fileToBeOpened.txt";
+    createFile(filename1);
+	int ret = openFile(filename1);
+	if (ret == 0)
+	{
+        fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testOpenFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testOpenFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
 	}
 }
 
