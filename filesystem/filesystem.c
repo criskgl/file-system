@@ -85,7 +85,7 @@ int mkFS(long deviceSize) {
  */
 int mountFS(void)
 {
-	//TODO-Check for incoming errors in disk.
+	//TODO::Check for incoming errors in disk.
 
 	//Save 2 first blocks of disk in memory (structures)
 	char block_buffer[BLOCK_SIZE*2];
@@ -112,7 +112,7 @@ int mountFS(void)
  */
 int unmountFS(void)
 {
-	//TODO - use superblock.blocksize
+	//TODO: - use superblock.blocksize
 	char block_buffer[BLOCK_SIZE*2];
 
 	//Pad the rest of the block
@@ -145,9 +145,26 @@ int unmountFS(void)
  */
 int createFile(char *fileName)
 {
-	//TODO
+	//TODO:: Integrity
+
 	//Check if filename does not already exist
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, fileName) == 0) return -1;
+	}
+
 	//Check for free inode scanning through inodes array
+	int freeInodeIndex = -1;
+	for(int i = 0; i < superblock.inodes; i++){
+		if(inodes[i].status == FREE) freeInodeIndex = i;
+	}
+	if(freeInodeIndex == -1) return -2;
+
+	//At this point we have a free inode
+	//Set info inside inode according to fileName
+	strcpy(inodes[freeInodeIndex].file_name, fileName);
+	inodes[freeInodeIndex].size = 0;
+	inodes[freeInodeIndex].status = USED;
+	//inodes datablocks are not assigned yet
 
 	return 0;
 }
@@ -158,7 +175,35 @@ int createFile(char *fileName)
  */
 int removeFile(char *fileName)
 {
-	return -2;
+	//TODO: Check before reomving file completelly from disk (existance of links)
+
+	//Check if file name exists within the filesystem
+	int iNodeIndex = -1;
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, fileName) == 0){
+			iNodeIndex = i;
+			break;
+		}
+	}
+	if(iNodeIndex < 0) return -1;//file does not exist: error code -1 
+
+	//reset the block in disk
+	int blocksInInode = sizeof(inodes[iNodeIndex].data_blocks)/sizeof(inodes[iNodeIndex].data_blocks[0]);
+	char * block_buffer = malloc(BLOCK_SIZE); 
+	for(int i=0; i<sizeof(block_buffer); i++){
+		block_buffer[i] = 'D';
+	}
+	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
+	
+	//clean bitmap
+	for(int i = 0; i < blocksInInode; i++){	
+		bitmap_setbit(bitmap.map, i, FREE);
+	}
+
+	//clean inode
+	inodes[iNodeIndex] = (INode){"",FREE,0,{}};
+
+	return 0;
 }
 
 /*
