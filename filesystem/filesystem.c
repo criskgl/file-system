@@ -259,9 +259,9 @@ int closeFile(int fileDescriptor)
 	if(fd < 0) return -1;//fileDescriptor was not found in fileTable
 
 	//free filetable entry
-	filetable.entries[fileDescriptor].fd = NULL;
-	filetable.entries[fileDescriptor].inodeIdx = NULL;
-	filetable.entries[fileDescriptor].offset = NULL;
+	filetable.entries[fileDescriptor].fd = MAX_FILES+1;
+	filetable.entries[fileDescriptor].inodeIdx = MAX_FILES+1;
+	filetable.entries[fileDescriptor].offset = 0;
 	filetable.entries[fileDescriptor].refCount = 0;
 
 	return 0;

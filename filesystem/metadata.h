@@ -45,13 +45,15 @@ typedef struct INode{
   unsigned short data_blocks[5];
 } INode;
 
-typedef struct FileTable{
-  FileEntry entries[MAX_FILES];//TODO: Preguntar a Jose el maximo en esta tabla
-} FileTable; 
 
 typedef struct FileTableEntry{
   int fd;
   int offset;
   int refCount;
   int inodeIdx;
-} FileEntry;
+} FileTableEntry;
+
+typedef struct FileTable{
+  FileTableEntry entries[MAX_FILES];//TODO: Preguntar a Jose el maximo en esta tabla
+} FileTable; 
+
