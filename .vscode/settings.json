@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "metadata.h": "c",
+        "cmath": "c"
+    }
+}
