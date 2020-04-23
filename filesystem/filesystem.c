@@ -43,6 +43,7 @@ int mkFS(long deviceSize) {
 	superblock_tmp.total_blocks = deviceSize/BLOCK_SIZE;
 	superblock_tmp.inode_blocks = BLOCK_SIZE/sizeof(INode);
 	superblock_tmp.inodes = MAX_FILES;
+	superblock.blocksize = BLOCK_SIZE;
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
@@ -89,7 +90,7 @@ int mountFS(void)
 	//TODO::Check for incoming errors in disk.
 
 	//Save 2 first blocks of disk in memory (structures)
-	char block_buffer[BLOCK_SIZE*2];
+	char block_buffer[superblock.blocksize*2];
 	if (bread(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
 	if (bread(DEVICE_IMAGE, 1, ((char *)&(block_buffer[2048]))) == -1) return -1;
 
@@ -113,8 +114,7 @@ int mountFS(void)
  */
 int unmountFS(void)
 {
-	//TODO: - use superblock.blocksize
-	char block_buffer[BLOCK_SIZE*2];
+	char block_buffer[superblock.blocksize*2];
 
 	//Pad the rest of the block
 	for(int i=0; i<sizeof(block_buffer); i++){
@@ -128,7 +128,7 @@ int unmountFS(void)
 
 	//Write data structures back to first 2 blocks of disk
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
-	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[BLOCK_SIZE]))) == -1) return -1;
+	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[superblock.blocksize]))) == -1) return -1;
 
 	//Free up memory used
 	if(mounted == 1){
@@ -190,7 +190,7 @@ int removeFile(char *fileName)
 
 	//reset the block in disk
 	int blocksInInode = sizeof(inodes[iNodeIndex].data_blocks)/sizeof(inodes[iNodeIndex].data_blocks[0]);
-	char * block_buffer = malloc(BLOCK_SIZE); 
+	char * block_buffer = malloc(superblock.blocksize); 
 	for(int i=0; i<sizeof(block_buffer); i++){
 		block_buffer[i] = 'D';
 	}
@@ -297,7 +297,7 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int writeFile(int fileDescriptor, void *buffer, int numBytes)
 {
-	
+	//TODO:
 	return -1;
 }
 
@@ -307,6 +307,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int lseekFile(int fileDescriptor, long offset, int whence)
 {
+	//TODO:
 	return -1;
 }
 
@@ -317,6 +318,7 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 
 int checkFile (char * fileName)
 {
+	//TODO:
     return -2;
 }
 
@@ -327,6 +329,7 @@ int checkFile (char * fileName)
 
 int includeIntegrity (char * fileName)
 {
+	//TODO:
     return -2;
 }
 
@@ -336,7 +339,7 @@ int includeIntegrity (char * fileName)
  */
 int openFileIntegrity(char *fileName)
 {
-
+	//TODO:	
     return -2;
 }
 
@@ -346,6 +349,7 @@ int openFileIntegrity(char *fileName)
  */
 int closeFileIntegrity(int fileDescriptor)
 {
+	//TODO:
     return -1;
 }
 
@@ -355,6 +359,7 @@ int closeFileIntegrity(int fileDescriptor)
  */
 int createLn(char *fileName, char *linkName)
 {
+	//TODO:
     return -1;
 }
 
@@ -364,5 +369,6 @@ int createLn(char *fileName, char *linkName)
  */
 int removeLn(char *linkName)
 {
+	//TODO:
     return -2;
 }
