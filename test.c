@@ -66,6 +66,22 @@ void testOpenFile(){
 	}
 }
 
+void testCloseFile(){ 
+	char* filename1 = "fileToBeClosed.txt";
+    createFile(filename1);
+	int fd = openFile(filename1);
+	if(fd < 0){
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCloseFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+	int ret = closeFile(fd);
+	if (ret == 0)
+	{
+        fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCloseFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCloseFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
 int main()
 {
 	int ret;
