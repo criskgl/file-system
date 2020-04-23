@@ -2,3 +2,4 @@
 *.a
 test
 create_disk
+run.sh

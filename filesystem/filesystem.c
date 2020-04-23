@@ -45,7 +45,7 @@ int mkFS(long deviceSize) {
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
-		inodes_tmp[i] = (INode){ "123456789012345678901234567890.t\0",FREE,0,{}};
+		inodes_tmp[i] = (INode){ "",FREE,0,{}};
 	}
 
 	//Declare bitmap size
@@ -71,6 +71,7 @@ int mkFS(long deviceSize) {
 	memcpy(&block_buffer,&superblock_tmp,sizeof(SuperBlock));
 	memcpy(&block_buffer[sizeof(superblock_tmp)],bitmap_tmp.map,bitmap_tmp.size);
 	memcpy(&block_buffer[sizeof(superblock_tmp)+bitmap_tmp.size],&inodes_tmp,sizeof(INode)*MAX_FILES);
+	
 	//Write buffer to disk
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
 	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[2048]))) == -1) return -1;
@@ -97,6 +98,7 @@ int mountFS(void)
 	bitmap.map = malloc(bitmap.size);
 	memcpy(bitmap.map, &block_buffer[sizeof(superblock)], bitmap.size);
 	memcpy(&inodes, &block_buffer[sizeof(superblock)+bitmap.size], sizeof(INode)*superblock.inodes);
+	
 	//Mark device as mounted
 	mounted = 1;
 
@@ -111,17 +113,19 @@ int mountFS(void)
 int unmountFS(void)
 {
 	//TODO - use superblock.blocksize
-
 	char block_buffer[BLOCK_SIZE*2];
+
 	//Pad the rest of the block
 	for(int i=0; i<sizeof(block_buffer); i++){
 		block_buffer[i] = 'X';
 	}
-	//Write data structures back to disk
+
+	//Fill up buffer with structures in memory
 	memcpy(&block_buffer,&superblock,sizeof(SuperBlock));
 	memcpy(&block_buffer[sizeof(SuperBlock)],bitmap.map,bitmap.size);
 	memcpy(&block_buffer[sizeof(SuperBlock)+bitmap.size],&inodes,sizeof(INode)*MAX_FILES);
 
+	//Write data structures back to first 2 blocks of disk
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
 	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[BLOCK_SIZE]))) == -1) return -1;
 
