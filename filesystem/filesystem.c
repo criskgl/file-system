@@ -318,7 +318,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 
 	//Allocate enough data blocks in iNode to write all bytes
 	int blockIndex = fileEntry.offset/BLOCK_SIZE + 1; 
-	for(int i=0; i<bitmap.size*8; i++){
+	for(int i=0; i < bitmap.size*8; i++){
 		if(blockIndex > (numBytes+fileEntry.offset)/BLOCK_SIZE) break;
 		if(bitmap_getbit(bitmap.map,i) == 0){
 			inodes[inode_index].data_blocks[blockIndex] = i;
@@ -357,7 +357,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 		}
 
 		//Fill up buffer with bytes to write
-		memcpy(block_buffer,buffer[bytesWritten],bytesToWrite);
+		memcpy(block_buffer,(char *)buffer + bytesWritten,bytesToWrite);
 
 		//Write buffer to disk on current block
 		if (bwrite(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(buffer))) == -1) return -1;
