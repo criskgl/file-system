@@ -298,8 +298,78 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int writeFile(int fileDescriptor, void *buffer, int numBytes)
 {
-	//TODO:
-	return -1;
+	//check if fileDescriptor is valid
+	int fd = -1;
+	for(int i = 0; i < MAX_FILES; i++){
+		if(filetable.entries[i].fd == fileDescriptor){
+			fd = i;
+			break;
+		}
+	}
+
+	//fileDescriptor was not found in fileTable
+	if(fd < 0) return -1;
+
+	FileTableEntry fileEntry = filetable.entries[fileDescriptor];
+	int inode_index = fileEntry.inodeIdx;
+
+	//Check if inode can address enough blocks starting from offset to store numBytes
+	if(numBytes+fileEntry.offset > BLOCK_SIZE*superblock.inode_blocks) return -1;
+
+	//Allocate enough data blocks in iNode to write all bytes
+	int blockIndex = fileEntry.offset/BLOCK_SIZE + 1; 
+	for(int i=0; i<bitmap.size*8; i++){
+		if(blockIndex > (numBytes+fileEntry.offset)/BLOCK_SIZE) break;
+		if(bitmap_getbit(bitmap.map,i) == 0){
+			inodes[inode_index].data_blocks[blockIndex] = i;
+			blockIndex++;
+			bitmap_setbit(bitmap.map,i,1);
+		}
+		//No free blocks available
+		if(i == bitmap.size*8) return -1;
+	}
+	
+	char block_buffer[BLOCK_SIZE];
+	int bytesWritten = 0;
+	int currentBlock = fileEntry.offset/BLOCK_SIZE;
+
+	//Write the rest of first block to disk
+	if(inodes[inode_index].size > 0){
+		if (bread(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
+		memcpy(block_buffer,buffer,BLOCK_SIZE-fileEntry.offset);
+		if (bwrite(DEVICE_IMAGE, currentBlock, ((char *)&(block_buffer))) == -1) return -1;
+		currentBlock++;
+		bytesWritten += BLOCK_SIZE-fileEntry.offset;
+	}
+		
+	//Write the rest of blocks until all bytes have been written
+	int bytesToWrite = BLOCK_SIZE;
+	while(bytesWritten < numBytes){
+
+		//Check if remaining bytes are less than a full block
+		if(numBytes-bytesWritten < BLOCK_SIZE){
+			bytesToWrite = numBytes-bytesWritten;
+		}
+
+		//Flush buffer
+		for(int i=0; i<sizeof(block_buffer); i++){
+			block_buffer[i] = '0';
+		}
+
+		//Fill up buffer with bytes to write
+		memcpy(block_buffer,buffer[bytesWritten],bytesToWrite);
+
+		//Write buffer to disk on current block
+		if (bwrite(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(buffer))) == -1) return -1;
+		
+		currentBlock++;
+		bytesWritten += bytesToWrite;
+	}
+
+	inodes[fileEntry.inodeIdx].size += numBytes;
+	fileEntry.offset += numBytes; //TODO: Ask Jose
+
+	return bytesWritten;
 }
 
 /*
