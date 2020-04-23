@@ -21,6 +21,7 @@ int mounted = 0;
 SuperBlock superblock;
 INode inodes[MAX_FILES];
 BitMap bitmap;
+FileTable filetable;
 
 /*
  * @brief 	Generates the proper file system structure in a storage device, as designed by the student.
@@ -194,7 +195,7 @@ int removeFile(char *fileName)
 		block_buffer[i] = 'D';
 	}
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
-	
+
 	//clean bitmap
 	for(int i = 0; i < blocksInInode; i++){	
 		bitmap_setbit(bitmap.map, i, FREE);
@@ -212,7 +213,32 @@ int removeFile(char *fileName)
  */
 int openFile(char *fileName)
 {
-	return -2;
+	//Check if filename exists
+	int iNodeIndex = -1; 
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, fileName) == 0){
+			iNodeIndex = i;
+			break;
+		}
+	}
+	if(iNodeIndex == -1) return -1;//file does not exist
+
+	//look for free entry in SFT
+	int fileEntryIndex = -1;
+	for(int i = 0; i < MAX_FILES; i++){
+		if(filetable.entries[i].refCount == 0){
+			fileEntryIndex = i;
+			break;
+		}
+	}
+	if(fileEntryIndex == -1) return -2;//not anough entries in filetable
+
+	//set values in filetable entry
+	filetable.entries[fileEntryIndex].offset = 0;
+	filetable.entries[fileEntryIndex].refCount = 1;
+	filetable.entries[fileEntryIndex].inodeIdx = iNodeIndex;
+	
+	return fileEntryIndex;//file descriptor
 }
 
 /*

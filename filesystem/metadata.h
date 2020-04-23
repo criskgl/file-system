@@ -44,3 +44,13 @@ typedef struct INode{
   unsigned short size;//size of file
   unsigned short data_blocks[5];
 } INode;
+
+typedef struct FileTable{
+  OpenFileEntry entries[MAX_FILES];//TODO: Preguntar a Jose el maximo en esta tabla
+} FileTable; 
+
+typedef struct OpenFileTableEntry{
+  int offset;
+  int refCount;
+  int inodeIdx;
+} OpenFileEntry;
