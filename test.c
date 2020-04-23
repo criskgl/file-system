@@ -118,7 +118,11 @@ int main()
 
 	///////
 	fileWasDeleted();
-	
+	//////
+	testOpenFile();
+	//////
+	testCloseFile();
+	/////
 	ret = unmountFS();
 	if (ret != 0)
 	{
