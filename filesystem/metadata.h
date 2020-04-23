@@ -46,11 +46,12 @@ typedef struct INode{
 } INode;
 
 typedef struct FileTable{
-  OpenFileEntry entries[MAX_FILES];//TODO: Preguntar a Jose el maximo en esta tabla
+  FileEntry entries[MAX_FILES];//TODO: Preguntar a Jose el maximo en esta tabla
 } FileTable; 
 
-typedef struct OpenFileTableEntry{
+typedef struct FileTableEntry{
+  int fd;
   int offset;
   int refCount;
   int inodeIdx;
-} OpenFileEntry;
+} FileEntry;

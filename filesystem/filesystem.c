@@ -234,6 +234,7 @@ int openFile(char *fileName)
 	if(fileEntryIndex == -1) return -2;//not anough entries in filetable
 
 	//set values in filetable entry
+	filetable.entries[fileEntryIndex].fd = fileEntryIndex;
 	filetable.entries[fileEntryIndex].offset = 0;
 	filetable.entries[fileEntryIndex].refCount = 1;
 	filetable.entries[fileEntryIndex].inodeIdx = iNodeIndex;
@@ -247,7 +248,23 @@ int openFile(char *fileName)
  */
 int closeFile(int fileDescriptor)
 {
-	return -1;
+	//Check if filedescriptor exists
+	int fd = -1;
+	for(int i = 0; i < MAX_FILES; i++){
+		if(filetable.entries[i].fd == fileDescriptor){
+			fd = i;
+			break;
+		}
+	}
+	if(fd < 0) return -1;//fileDescriptor was not found in fileTable
+
+	//free filetable entry
+	filetable.entries[fileDescriptor].fd = NULL;
+	filetable.entries[fileDescriptor].inodeIdx = NULL;
+	filetable.entries[fileDescriptor].offset = NULL;
+	filetable.entries[fileDescriptor].refCount = 0;
+
+	return 0;
 }
 
 /*
