@@ -277,14 +277,14 @@ int closeFile(int fileDescriptor)
 }
 
 /*
- * @brief	Reads a number of bytes from a file and stores them in a buffer.
+ * @brief	Reads a number of bytes from a file and stores them in a buffer(from a possible offset).
+ * 			Particularly if the offset is at the very end of file. the bytes returned must be 0.
  * @return	Number of bytes properly read, -1 in case of error.
  */
 int readFile(int fileDescriptor, void *buffer, int numBytes)
-{
-	return -1;
-	/*
-	//TODO: readFile
+{	
+	//TODO: can be optimized! (do not use master_buf)
+
 	//check if fileDescriptor is valid
 	int fd = -1;
 	for(int i = 0; i < MAX_FILES; i++){
@@ -295,12 +295,24 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 	}
 	if(fd < 0) return -1;//fileDescriptor was not found in fileTable
 
-	//read block using offset bytes into buffer
-	if (bread(DEVICE_IMAGE, 0, ((char *)&(buffer[filetable.entries[fileDescriptor].offset]))) == -1) return -1;
+	//retrieve necessary data structures
+	FileTableEntry fileEntry= filetable.entries[fileDescriptor];
+	int InodeIndex = fileEntry.inodeIdx;
+	INode inode = inodes[InodeIndex];
 
+	//check if file is not empty or if offset is at end of written bytes
+	if(inode.size == 0 || inode.size == fileEntry.offset) return 0;
 
-	return -1;
-	*/
+	//read all file to buffer
+	char master_buf[superblock.inode_blocks*BLOCK_SIZE];
+	int bytesRead = 0;
+	int currentBlock = 0;
+	while(bytesRead < inode.size){
+		if (bread(DEVICE_IMAGE, inode.data_blocks[currentBlock], ((char *)&(master_buf[bytesRead]))) == -1) return -1;
+		bytesRead += BLOCK_SIZE;
+	}
+	memcpy(buffer, master_buf, inode.size - fileEntry.offset);
+	return bytesRead-fileEntry.offset;
 }
 
 /*
@@ -344,7 +356,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 	int bytesWritten = 0;
 	int currentBlock = fileEntry.offset/BLOCK_SIZE;
 
-	//Write the rest of first block to disk
+	//Write the rest of first offset(if any) block to disk
 	if(inodes[inode_index].size > 0){
 		if (bread(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
 		memcpy(block_buffer,buffer,BLOCK_SIZE-fileEntry.offset);
