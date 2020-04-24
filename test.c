@@ -116,7 +116,7 @@ void testReadFileNoOffset(){
 	}
 
 	char read_buf[2048];
-	ret = readFile(fd, read_buf, 2048);
+	ret = readFile(fd, read_buf, 212);
 	if(ret == -1) fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testReadFileNoOffset ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
 	printf("%s", read_buf);
 	if(strcmp(read_buf, buffer) == 0){

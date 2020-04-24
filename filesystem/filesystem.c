@@ -157,16 +157,19 @@ int createFile(char *fileName)
 	//Check for free inode scanning through inodes array
 	int freeInodeIndex = -1;
 	for(int i = 0; i < superblock.inodes; i++){
-		if(inodes[i].status == FREE) freeInodeIndex = i;
+		if(inodes[i].status == FREE) {
+			//if free inode found set up info
+			freeInodeIndex = i;
+			inodes[i].status = USED;//mark inode as used
+			inodes[freeInodeIndex].size = 0;
+			//--inodes datablocks are not assigned yet
+			break;
+		}
 	}
-	if(freeInodeIndex == -1) return -2;
+	if(freeInodeIndex == -1) return -2;//no free inodes left
 
 	//At this point we have a free inode
-	//Set info inside inode according to fileName
 	strcpy(inodes[freeInodeIndex].file_name, fileName);
-	inodes[freeInodeIndex].size = 0;
-	inodes[freeInodeIndex].status = USED;
-	//inodes datablocks are not assigned yet
 
 	return 0;
 }
@@ -190,10 +193,11 @@ int removeFile(char *fileName)
 	if(iNodeIndex < 0) return -1;//file does not exist: error code -1 
 
 	//reset the block in disk
-	char * block_buffer = malloc(BLOCK_SIZE); 
+	char block_buffer[BLOCK_SIZE]; 
 	for(int i=0; i<sizeof(block_buffer); i++){
 		block_buffer[i] = 'D';
 	}
+
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
 
 	//clean bitmap only when needed
@@ -304,11 +308,11 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 	if(inode.size == 0 || inode.size == fileEntry.offset) return 0;
 
 	//read all file to buffer
-	char master_buf[superblock.inode_blocks*BLOCK_SIZE];
+	char master_buf[5*BLOCK_SIZE];
 	int bytesRead = 0;
-	int currentBlock = 0;
+	//int currentBlock = 0;
 	while(bytesRead < inode.size){
-		if (bread(DEVICE_IMAGE, inode.data_blocks[currentBlock], ((char *)&(master_buf[bytesRead]))) == -1) return -1;
+		if (bread(DEVICE_IMAGE, 0, ((char *)&(master_buf[bytesRead]))) == -1) return -1;
 		bytesRead += BLOCK_SIZE;
 	}
 	memcpy(buffer, master_buf, inode.size - fileEntry.offset);
