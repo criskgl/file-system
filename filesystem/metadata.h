@@ -29,8 +29,8 @@ static inline void bitmap_setbit(char *bitmap_, int i_, int val_) {
 
 typedef struct SuperBlock{
   unsigned short total_blocks;
-  unsigned short inode_blocks;
-  unsigned short inodes;
+  unsigned short inode_blocks;//blocks dedicated for inodes
+  unsigned short inodes;//total inodes in FS
 } SuperBlock;//6 Bytes
 
 typedef struct BitMap{

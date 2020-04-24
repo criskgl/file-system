@@ -163,13 +163,12 @@ int createFile(char *fileName)
 			inodes[i].status = USED;//mark inode as used
 			inodes[freeInodeIndex].size = 0;
 			//--inodes datablocks are not assigned yet
+			strcpy(inodes[freeInodeIndex].file_name, fileName);
 			break;
 		}
 	}
-	if(freeInodeIndex == -1) return -2;//no free inodes left
-
-	//At this point we have a free inode
-	strcpy(inodes[freeInodeIndex].file_name, fileName);
+	//no free inodes left
+	if(freeInodeIndex == -1) return -2;
 
 	return 0;
 }
@@ -181,7 +180,7 @@ int createFile(char *fileName)
 int removeFile(char *fileName)
 {
 	//TODO: Check before reomving file completelly from disk (existance of links)
-
+	
 	//Check if file name exists within the filesystem
 	int iNodeIndex = -1;
 	for(int i = 0; i < superblock.inodes; i++){
@@ -192,14 +191,6 @@ int removeFile(char *fileName)
 	}
 	if(iNodeIndex < 0) return -1;//file does not exist: error code -1 
 
-	//reset the block in disk
-	char block_buffer[BLOCK_SIZE]; 
-	for(int i=0; i<sizeof(block_buffer); i++){
-		block_buffer[i] = 'D';
-	}
-
-	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
-
 	//clean bitmap only when needed
 	if(inodes[iNodeIndex].size > 0){
 		int blocksOccupiedInInode;
@@ -209,12 +200,13 @@ int removeFile(char *fileName)
 			blocksOccupiedInInode = inodes[iNodeIndex].size/BLOCK_SIZE + 1;
 		}
 		for(int i = 0; i < blocksOccupiedInInode; i++){	
+			//free blocks
 			bitmap_setbit(bitmap.map, inodes[iNodeIndex].data_blocks[i], FREE);
 		}
 	}
 
-
-	//clean inode
+	//clean inode actually removes file from filesystem
+	//(but data previously written in disk remains the same until overwritten)
 	inodes[iNodeIndex] = (INode){"",FREE,0,{}};
 
 	return 0;
@@ -262,6 +254,7 @@ int openFile(char *fileName)
 int closeFile(int fileDescriptor)
 {
 	//Check if filedescriptor exists
+	//--if it exists means that the file is open
 	int fd = -1;
 	for(int i = 0; i < MAX_FILES; i++){
 		if(filetable.entries[i].fd == fileDescriptor){
@@ -269,7 +262,8 @@ int closeFile(int fileDescriptor)
 			break;
 		}
 	}
-	if(fd < 0) return -1;//fileDescriptor was not found in fileTable
+	//fileDescriptor was not found in fileTable
+	if(fd < 0) return -1;
 
 	//free filetable entry
 	filetable.entries[fileDescriptor].fd = MAX_FILES+1;
@@ -310,10 +304,11 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 	//read all file to buffer
 	char master_buf[5*BLOCK_SIZE];
 	int bytesRead = 0;
-	//int currentBlock = 0;
+	int currentBlock = 0;
 	while(bytesRead < inode.size){
-		if (bread(DEVICE_IMAGE, 0, ((char *)&(master_buf[bytesRead]))) == -1) return -1;
+		if (bread(DEVICE_IMAGE, inode.data_blocks[currentBlock], ((char *)&(master_buf[bytesRead]))) == -1) return -1;
 		bytesRead += BLOCK_SIZE;
+		currentBlock++;
 	}
 	memcpy(buffer, master_buf, inode.size - fileEntry.offset);
 	return bytesRead-fileEntry.offset;
@@ -340,13 +335,11 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 	FileTableEntry fileEntry = filetable.entries[fileDescriptor];
 	int inode_index = fileEntry.inodeIdx;
 
-	//Check if inode can address enough blocks starting from offset to store numBytes
-	if(numBytes+fileEntry.offset > BLOCK_SIZE*superblock.inode_blocks) return -1;
-
 	//Allocate enough data blocks in iNode to write all bytes
 	int blockIndex = inodes[inode_index].size/BLOCK_SIZE; 
 	for(int i=0; i < bitmap.size*8; i++){
-		if(blockIndex > (numBytes+fileEntry.offset)/BLOCK_SIZE) break;
+		int tmp = (numBytes+fileEntry.offset)/BLOCK_SIZE;
+		if(blockIndex >= tmp) break;
 		if(bitmap_getbit(bitmap.map,i) == 0){
 			inodes[inode_index].data_blocks[blockIndex] = i;
 			blockIndex++;
@@ -364,6 +357,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 	if(inodes[inode_index].size > 0){
 		if (bread(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
 		memcpy(block_buffer,buffer,BLOCK_SIZE-fileEntry.offset);
+		memcpy((char *)&block_buffer[fileEntry.offset], buffer, BLOCK_SIZE - fileEntry.offset%BLOCK_SIZE);
 		if (bwrite(DEVICE_IMAGE, currentBlock, ((char *)&(block_buffer))) == -1) return -1;
 		currentBlock++;
 		bytesWritten += BLOCK_SIZE-fileEntry.offset;
@@ -371,7 +365,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 		
 	//Write the rest of blocks until all bytes have been written
 	int bytesToWrite = BLOCK_SIZE;
-	while(bytesWritten < numBytes){
+	while(bytesWritten < numBytes || currentBlock == MAX_FILE_SIZE/BLOCK_SIZE){
 
 		//Check if remaining bytes are less than a full block
 		if(numBytes-bytesWritten < BLOCK_SIZE){
@@ -380,21 +374,21 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 
 		//Flush buffer
 		for(int i=0; i<sizeof(block_buffer); i++){
-			block_buffer[i] = '0';
+			block_buffer[i] = 'W';
 		}
 
 		//Fill up buffer with bytes to write
 		memcpy(block_buffer,(char *)buffer + bytesWritten,bytesToWrite);
 
 		//Write buffer to disk on current block
-		if (bwrite(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(buffer))) == -1) return -1;
+		if (bwrite(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
 		
 		currentBlock++;
 		bytesWritten += bytesToWrite;
 	}
 
 	inodes[fileEntry.inodeIdx].size += numBytes;
-	fileEntry.offset += numBytes; //TODO: Ask Jose
+	filetable.entries[fileDescriptor].offset += numBytes;
 
 	return bytesWritten;
 }

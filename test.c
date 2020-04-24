@@ -91,7 +91,11 @@ void testWriteFile(){
 	}
 	
 	char buffer[2048] = "Hello this is the content of my file. It is quite quite quite quite quite quite quite quitequite quite quite quitequite quite quite quitequite quite quite quitequite quite quite quitequite quite quite quite large";
-	int ret = writeFile(fd, buffer, 212);
+	int ret = 0;
+	for(int i = 0; i < 50; i++){
+		ret = writeFile(fd, buffer, 212);
+		printf("%d\n", ret);
+	}
 	if (ret == -1)
 	{
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testWriteFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
@@ -101,7 +105,7 @@ void testWriteFile(){
 }
 
 void testReadFileNoOffset(){ 
-	char* filename1 = "fileToBeWritten.txt";
+	char* filename1 = "fileToBeReadNoOffset.txt";
     createFile(filename1);
 	int fd = openFile(filename1);
 	if(fd < 0){
@@ -116,7 +120,7 @@ void testReadFileNoOffset(){
 	}
 
 	char read_buf[2048];
-	ret = readFile(fd, read_buf, 212);
+	ret = readFile(fd, read_buf, 20000);
 	if(ret == -1) fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testReadFileNoOffset ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
 	printf("%s", read_buf);
 	if(strcmp(read_buf, buffer) == 0){
@@ -150,9 +154,9 @@ int main()
 
 	///////
 
-	fileNameAlreadyExists();
+	//fileNameAlreadyExists();
 
-	ret = createFile("/test.txt");
+	ret = createFile("test.txt");
 	if (ret != 0)
 	{
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
@@ -161,15 +165,15 @@ int main()
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
 	///////
-	fileWasDeleted();
+	//fileWasDeleted();
 	//////
-	testOpenFile();
+	//testOpenFile();
 	//////
-	testCloseFile();
+	//testCloseFile();
 	/////
 	testWriteFile();
 	/////
-	testReadFileNoOffset();
+	//testReadFileNoOffset();
 	/////
 	ret = unmountFS();
 	if (ret != 0)
