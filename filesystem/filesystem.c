@@ -399,7 +399,18 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int lseekFile(int fileDescriptor, long offset, int whence)
 {
-	//TODO:
+	switch (whence)
+	{
+	case  FS_SEEK_CUR:
+		/* code */
+		break;
+	case  FS_SEEK_CUR:
+		/* code */
+		break;
+	default:
+		return -1;
+		break;
+	}
 	return -1;
 }
 
