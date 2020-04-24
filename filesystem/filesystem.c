@@ -399,19 +399,34 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
  */
 int lseekFile(int fileDescriptor, long offset, int whence)
 {
+	//check if fileDescriptor is valid
+	int fd = -1;
+	for(int i = 0; i < MAX_FILES; i++){
+		if(filetable.entries[i].fd == fileDescriptor){
+			fd = i;
+			break;
+		}
+	}
+
+	//fileDescriptor was not found in fileTable
+	if(fd < 0) return -1;
+
 	switch (whence)
 	{
 	case  FS_SEEK_CUR:
-		/* code */
+		filetable.entries[fileDescriptor].offset += offset;
 		break;
-	case  FS_SEEK_CUR:
-		/* code */
+	case  FS_SEEK_END:
+		filetable.entries[fileDescriptor].offset = inodes[filetable.entries[fileDescriptor].inodeIdx].size;
+		break;
+	case  FS_SEEK_BEGIN:
+		filetable.entries[fileDescriptor].offset = 0;
 		break;
 	default:
 		return -1;
 		break;
 	}
-	return -1;
+	return 0;
 }
 
 /*
