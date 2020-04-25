@@ -337,32 +337,64 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 	int startBlock = inodes[inode_index].size/BLOCK_SIZE; 
 	int endBlock = (inodes[inode_index].size + numBytes)/BLOCK_SIZE;
 
-	//Do not assign a new block if there is written data on it
-	if(inodes[inode_index].data_blocks[startBlock] != 0) startBlock++;
 
-	//Assign blocks from startBlock to endblock
-	for(int i=0; i < bitmap.size*8; i++){
-		if(bitmap_getbit(bitmap.map,i) == 0){
-			inodes[inode_index].data_blocks[startBlock] = i;
-			if(startBlock == endBlock) break;
-			startBlock++;
+	//when do we need to store any more data blocks?
+	//--1.starting block has not yet been allocated
+	//--2.offset+numbytes exceeds starting block
+	
+	//1.
+	if(inodes[inode_index].data_blocks[startBlock] == 0){
+		//Assign blocks from startBlock to endblock
+		for(int i=0; i < bitmap.size*8; i++){
+			int tmp = bitmap_getbit(bitmap.map, i);
+			tmp++;
+			if(bitmap_getbit(bitmap.map,i) == 0){
+				inodes[inode_index].data_blocks[startBlock] = i;
+				bitmap_setbit(bitmap.map,i,USED);
+				break;
+			}
+			//No free blocks available
+			if(i == bitmap.size*8) return -1;
 		}
-		//No free blocks available
-		if(i == bitmap.size*8) return -1;
+	}
+	//2.
+	else if(fileEntry.offset + numBytes > BLOCK_SIZE*(startBlock+1)){
+		for(int i=0; i < bitmap.size*8; i++){
+			int tmp = bitmap_getbit(bitmap.map, i);
+			tmp++;
+			if(bitmap_getbit(bitmap.map,i) == 0){
+				startBlock++;
+				inodes[inode_index].data_blocks[startBlock] = i;
+				bitmap_setbit(bitmap.map,i,USED);
+				if(startBlock == endBlock) break;
+			}
+			//No free blocks available
+			if(i == bitmap.size*8) return -1;
+		}
 	}
 
 	char block_buffer[BLOCK_SIZE];
 	int bytesWritten = 0;
 	int currentBlock = fileEntry.offset/BLOCK_SIZE;
 
-	//Write the rest of first offset(if any) block to disk
+	//Add as much bytes as possible to disk to whatever was
+	// written on disk(if any) in first block
 	if(inodes[inode_index].size > 0){
 		if (bread(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
-		memcpy(block_buffer,buffer,BLOCK_SIZE-fileEntry.offset);
-		memcpy((char *)&block_buffer[fileEntry.offset], buffer, BLOCK_SIZE - fileEntry.offset%BLOCK_SIZE);
-		if (bwrite(DEVICE_IMAGE, currentBlock, ((char *)&(block_buffer))) == -1) return -1;
+		int block_buffer_size = 0;
+		if(numBytes <= BLOCK_SIZE-fileEntry.offset){
+			block_buffer_size = numBytes;
+		}else{
+			block_buffer_size = (startBlock+1)*BLOCK_SIZE-fileEntry.offset;
+		}
+		memcpy((char *)&block_buffer[fileEntry.offset], buffer, block_buffer_size);
+		if (bwrite(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
 		currentBlock++;
-		bytesWritten += BLOCK_SIZE-fileEntry.offset;
+		if(numBytes <= BLOCK_SIZE-fileEntry.offset){
+			bytesWritten += numBytes;
+		}else{
+			bytesWritten += BLOCK_SIZE-fileEntry.offset;
+		}
 	}
 		
 	//Write the rest of blocks until all bytes have been written
