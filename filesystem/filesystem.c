@@ -334,21 +334,23 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 
 	FileTableEntry fileEntry = filetable.entries[fileDescriptor];
 	int inode_index = fileEntry.inodeIdx;
+	int startBlock = inodes[inode_index].size/BLOCK_SIZE; 
+	int endBlock = (inodes[inode_index].size + numBytes)/BLOCK_SIZE;
 
-	//Allocate enough data blocks in iNode to write all bytes
-	int blockIndex = inodes[inode_index].size/BLOCK_SIZE; 
+	//Do not assign a new block if there is written data on it
+	if(inodes[inode_index].data_blocks[startBlock] != 0) startBlock++;
+
+	//Assign blocks from startBlock to endblock
 	for(int i=0; i < bitmap.size*8; i++){
-		int tmp = (numBytes+fileEntry.offset)/BLOCK_SIZE;
-		if(blockIndex >= tmp) break;
 		if(bitmap_getbit(bitmap.map,i) == 0){
-			inodes[inode_index].data_blocks[blockIndex] = i;
-			blockIndex++;
-			bitmap_setbit(bitmap.map,i,1);
+			inodes[inode_index].data_blocks[startBlock] = i;
+			if(startBlock == endBlock) break;
+			startBlock++;
 		}
 		//No free blocks available
 		if(i == bitmap.size*8) return -1;
 	}
-	
+
 	char block_buffer[BLOCK_SIZE];
 	int bytesWritten = 0;
 	int currentBlock = fileEntry.offset/BLOCK_SIZE;
@@ -414,6 +416,14 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 	switch (whence)
 	{
 	case  FS_SEEK_CUR:
+		//Cannot move cursor outside file size
+		if(filetable.entries[fileDescriptor].offset + offset > inodes[filetable.entries[fileDescriptor].inodeIdx].size){
+			return -1;
+		} 
+		//Cannot move cursor below 0
+		if(filetable.entries[fileDescriptor].offset + offset < 0){
+			return -1;
+		} 
 		filetable.entries[fileDescriptor].offset += offset;
 		break;
 	case  FS_SEEK_END:

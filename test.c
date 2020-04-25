@@ -130,6 +130,74 @@ void testReadFileNoOffset(){
 	}
 }
 
+void testLseekEnd(){ 
+	char* filename1 = "fileToSeekEnd.txt";
+    createFile(filename1);
+	int fd = openFile(filename1);
+
+	writeFile(fd, "0123456789", 10);
+	
+	int ret = lseekFile(fd, 0, FS_SEEK_END);
+
+	if (ret == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testLseekEnd ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testLseekEnd ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
+void testLseekBegin(){ 
+	char* filename1 = "fileToSeekBegin.txt";
+    createFile(filename1);
+	int fd = openFile(filename1);
+
+	writeFile(fd, "0123456789", 10);
+	
+	int ret = lseekFile(fd, 10, FS_SEEK_BEGIN);
+
+	if (ret == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testLseekBegin ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testLseekBegin ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
+void testLseekAfterSize(){ 
+	char* filename1 = "fileToSeekAfterSize.txt";
+    createFile(filename1);
+	int fd = openFile(filename1);
+
+	writeFile(fd, "0123456789", 10);
+	
+	int ret = lseekFile(fd, 1, FS_SEEK_CUR);
+
+	if (ret == -1)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testLseekAfterSize ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testLseekAfterSize ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
+void testLseekBelow0(){ 
+	char* filename1 = "fileToSeekBelow0.txt";
+    createFile(filename1);
+	int fd = openFile(filename1);
+
+	writeFile(fd, "0123456789", 10);
+	
+	int ret = lseekFile(fd, -11, FS_SEEK_CUR);
+
+	if (ret == -1)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testLseekBelow0 ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testLseekBelow0 ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
 int main()
 {
 	int ret;
@@ -175,6 +243,14 @@ int main()
 	/////
 	//testReadFileNoOffset();
 	/////
+	testLseekEnd();
+	/////
+	testLseekBegin();
+	/////
+	testLseekAfterSize();
+	/////
+	testLseekBelow0();
+	/////
 	ret = unmountFS();
 	if (ret != 0)
 	{
@@ -182,8 +258,6 @@ int main()
 		return -1;
 	}
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST unmountFS ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
-
-	///////
 
 	return 0;
 }
