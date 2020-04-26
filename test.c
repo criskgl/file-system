@@ -94,18 +94,18 @@ void testWriteFile(){
 	int ret = 0;
 	for(int i = 0; i < 5; i++){
 		ret = writeFile(fd, buffer, 2047);
-		printf("%d\n", ret);
+		if(ret != 2047){
+			fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testWriteFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+			return;
+		}
 	}
 	char buffer2[6] = "ABCDEF";
 	ret = writeFile(fd, buffer2, 6);
-	printf("%d\n", ret);
-
-	if (ret == -1)
-	{
+	if(ret != 5){
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testWriteFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
-	}else{
-		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testWriteFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+		return;
 	}
+	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testWriteFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 }
 
 void testReadFileNoOffset(){ 

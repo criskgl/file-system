@@ -343,10 +343,10 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 		//create a buffer for the new block and flush it
 		char block_buffer[BLOCK_SIZE];
 		for(int i=0; i<sizeof(block_buffer); i++){
-			block_buffer[i] = 'W';
+			block_buffer[i] = '_';
 		}
 		//SPECIAL CASE FOR LAST BLOCK
-		if(inodes[iNodeIndex].blocks_assigned == MAX_DEV_SIZE/BLOCK_SIZE){
+		if(inodes[iNodeIndex].blocks_assigned == MAX_FILE_SIZE/BLOCK_SIZE){
 			int bytesAlreadyInBlock = filetable.entries[fileDescriptor].offset - currentBlock*BLOCK_SIZE;
 			int lastAllowedBytes = BLOCK_SIZE - bytesAlreadyInBlock;
 			int bytesToWriteFromBuffer = 0;
@@ -359,9 +359,10 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 			//Write to block
 			//Save bytes already on disk block
 			if (bread(DEVICE_IMAGE, inodes[iNodeIndex].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
-			memcpy(block_buffer, (char *)buffer + (numBytes-bytesLeftToWrite), bytesToWriteFromBuffer);
+			memcpy(&block_buffer[bytesAlreadyInBlock], (char *)buffer + (numBytes-bytesLeftToWrite), bytesToWriteFromBuffer);
 			filetable.entries[fd].offset += bytesToWriteFromBuffer;
 			inodes[iNodeIndex].size += bytesToWriteFromBuffer;
+			if (bwrite(DEVICE_IMAGE, inodes[iNodeIndex].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
 			return bytesToWriteFromBuffer;
 		}
 		//END SPECIAL CASE FOR LAST BLOCK
