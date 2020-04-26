@@ -42,7 +42,8 @@ typedef struct INode{
   char file_name[33];
   unsigned short status;
   unsigned short size;//size of file
-  unsigned short data_blocks[5];
+  unsigned short blocks_assigned;//number of blocks reserved for file
+  short data_blocks[5];
 } INode;
 
 
