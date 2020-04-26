@@ -149,11 +149,11 @@ void testReadFileNoOffset(){
 	{
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testReadFileNoOffset ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
 	}
-
+	closeFile(fd);
+	fd = openFile(filename1);
 	char read_buf[2048];
 	ret = readFile(fd, read_buf, 20000);
 	if(ret == -1) fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testReadFileNoOffset ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
-	printf("%s", read_buf);
 	if(strcmp(read_buf, buffer) == 0){
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testReadFileNoOffset ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 	}else{
@@ -272,9 +272,9 @@ int main()
 	/////
 	//testWriteLessThanBlock();
 	/////
-	testWriteMoreThanBlock();
+	//testWriteMoreThanBlock();
 	/////
-	//testReadFileNoOffset();
+	testReadFileNoOffset();
 	/////
 	//testLseekEnd();
 	/////
