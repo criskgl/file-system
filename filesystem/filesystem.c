@@ -46,7 +46,7 @@ int mkFS(long deviceSize) {
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
-		inodes_tmp[i] = (INode){ "",FREE,0,{}};
+		inodes_tmp[i] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1}};
 	}
 
 	//Declare bitmap size
@@ -162,7 +162,7 @@ int createFile(char *fileName)
 			freeInodeIndex = i;
 			inodes[i].status = USED;//mark inode as used
 			inodes[freeInodeIndex].size = 0;
-			//--inodes datablocks are not assigned yet
+			inodes[freeInodeIndex].blocks_assigned = 0;
 			strcpy(inodes[freeInodeIndex].file_name, fileName);
 			break;
 		}
@@ -207,7 +207,7 @@ int removeFile(char *fileName)
 
 	//clean inode actually removes file from filesystem
 	//(but data previously written in disk remains the same until overwritten)
-	inodes[iNodeIndex] = (INode){"",FREE,0,{}};
+	inodes[iNodeIndex] = (INode){"",FREE,0,0,{}};
 
 	return 0;
 }
@@ -333,99 +333,72 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 	if(fd < 0) return -1;
 
 	FileTableEntry fileEntry = filetable.entries[fileDescriptor];
-	int inode_index = fileEntry.inodeIdx;
-	int startBlock = inodes[inode_index].size/BLOCK_SIZE; 
-	int endBlock = (inodes[inode_index].size + numBytes)/BLOCK_SIZE;
-
-
-	//when do we need to store any more data blocks?
-	//--1.starting block has not yet been allocated
-	//--2.offset+numbytes exceeds starting block
-	
-	//1.
-	if(inodes[inode_index].data_blocks[startBlock] == 0){
-		//Assign blocks from startBlock to endblock
-		for(int i=0; i < bitmap.size*8; i++){
-			int tmp = bitmap_getbit(bitmap.map, i);
-			tmp++;
-			if(bitmap_getbit(bitmap.map,i) == 0){
-				inodes[inode_index].data_blocks[startBlock] = i;
-				bitmap_setbit(bitmap.map,i,USED);
-				break;
-			}
-			//No free blocks available
-			if(i == bitmap.size*8) return -1;
-		}
-	}
-	//2.
-	else if(fileEntry.offset + numBytes > BLOCK_SIZE*(startBlock+1)){
-		for(int i=0; i < bitmap.size*8; i++){
-			int tmp = bitmap_getbit(bitmap.map, i);
-			tmp++;
-			if(bitmap_getbit(bitmap.map,i) == 0){
-				startBlock++;
-				inodes[inode_index].data_blocks[startBlock] = i;
-				bitmap_setbit(bitmap.map,i,USED);
-				if(startBlock == endBlock) break;
-			}
-			//No free blocks available
-			if(i == bitmap.size*8) return -1;
-		}
-	}
-
-	char block_buffer[BLOCK_SIZE];
-	int bytesWritten = 0;
+	int iNodeIndex = fileEntry.inodeIdx;
 	int currentBlock = fileEntry.offset/BLOCK_SIZE;
+	int bytesLeftToWrite = numBytes;
 
-	//Add as much bytes as possible to disk to whatever was
-	// written on disk(if any) in first block
-	if(inodes[inode_index].size > 0){
-		if (bread(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
-		int block_buffer_size = 0;
-		if(numBytes <= BLOCK_SIZE-fileEntry.offset){
-			block_buffer_size = numBytes;
-		}else{
-			block_buffer_size = (startBlock+1)*BLOCK_SIZE-fileEntry.offset;
-		}
-		memcpy((char *)&block_buffer[fileEntry.offset], buffer, block_buffer_size);
-		if (bwrite(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
-		currentBlock++;
-		if(numBytes <= BLOCK_SIZE-fileEntry.offset){
-			bytesWritten += numBytes;
-		}else{
-			bytesWritten += BLOCK_SIZE-fileEntry.offset;
-		}
-	}
-		
-	//Write the rest of blocks until all bytes have been written
-	int bytesToWrite = BLOCK_SIZE;
-	while(bytesWritten < numBytes || currentBlock == MAX_FILE_SIZE/BLOCK_SIZE){
-
-		//Check if remaining bytes are less than a full block
-		if(numBytes-bytesWritten < BLOCK_SIZE){
-			bytesToWrite = numBytes-bytesWritten;
-		}
-
-		//Flush buffer
+	while(bytesLeftToWrite > 0){
+		//create a buffer for the new block and flush it
+		char block_buffer[BLOCK_SIZE];
 		for(int i=0; i<sizeof(block_buffer); i++){
 			block_buffer[i] = 'W';
 		}
 
-		//Fill up buffer with bytes to write
-		memcpy(block_buffer,(char *)buffer + bytesWritten,bytesToWrite);
+		//Block has not been assigned
+		if(inodes[iNodeIndex].data_blocks[currentBlock] == -1){
+			//Assign block
+			for(int i=0; i<bitmap.size*8; i++){
+				//search for next free block on bitmap and assign it to inode
+				if(bitmap_getbit(bitmap.map, i) == FREE){
+					inodes[iNodeIndex].data_blocks[currentBlock] = i;
+					bitmap_setbit(bitmap.map, i, USED);
+					break;
+				}
+				//return error if there are no free blocks
+				if(i == (bitmap.size*8)-1) return -1;
+			}
 
-		//Write buffer to disk on current block
-		if (bwrite(DEVICE_IMAGE, inodes[inode_index].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
-		
+			//fill up buffer with new bytes
+			if(bytesLeftToWrite<BLOCK_SIZE){
+				memcpy(block_buffer, (char *)&buffer + (numBytes-bytesLeftToWrite), bytesLeftToWrite);
+				bytesLeftToWrite = 0;
+				fileEntry.offset += bytesLeftToWrite;
+			}else{
+				memcpy(block_buffer, (char *)&buffer + (numBytes-bytesLeftToWrite), BLOCK_SIZE);
+				bytesLeftToWrite -= BLOCK_SIZE;
+				fileEntry.offset += BLOCK_SIZE;
+			}
+			
+		}else{ 
+		//Block has been assigned before (and could contain data)
+
+			//Calculate bytes already written in block and update offset
+			int bytesAlreadyInBlock = fileEntry.offset - currentBlock*BLOCK_SIZE;
+
+			//Save bytes already on disk block
+			if (bread(DEVICE_IMAGE, inodes[iNodeIndex].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
+
+			if(bytesLeftToWrite<BLOCK_SIZE-bytesAlreadyInBlock){
+				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)&buffer + (numBytes-bytesLeftToWrite), bytesLeftToWrite);
+				bytesLeftToWrite = 0;
+				fileEntry.offset += bytesLeftToWrite;
+			}else{
+				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)&buffer + (numBytes-bytesLeftToWrite), BLOCK_SIZE-bytesAlreadyInBlock);
+				bytesLeftToWrite -= BLOCK_SIZE-bytesAlreadyInBlock;
+				fileEntry.offset += BLOCK_SIZE-bytesAlreadyInBlock;
+			}
+		}
+
+		//write buffer to disk
+		if (bwrite(DEVICE_IMAGE, inodes[iNodeIndex].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
+
+		//update current block
 		currentBlock++;
-		bytesWritten += bytesToWrite;
 	}
 
-	inodes[fileEntry.inodeIdx].size += numBytes;
-	filetable.entries[fileDescriptor].offset += numBytes;
-
-	return bytesWritten;
+	return numBytes-bytesLeftToWrite;
 }
+
 
 /*
  * @brief	Modifies the position of the seek pointer of a file.
