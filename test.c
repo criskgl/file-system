@@ -201,6 +201,32 @@ void testLseekBelow0(){
 	}
 }
 
+void testCreateLn(){ 
+	char* filename = "originalFile.txt";
+    createFile(filename);
+	int fd = openFile(filename);
+
+	writeFile(fd, "0123456789", 10);
+	
+	closeFile(fd);
+
+	char* linkname = "linkToOriginalFile.txt";
+
+	createLn(filename, linkname);
+
+	fd = openFile(linkname);
+
+	char read_buf[10];
+	readFile(fd, read_buf, 10);
+
+	if (strcmp(read_buf,"0123456789") == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCreateLn ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCreateLn ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
 int main()
 {
 	int ret;
@@ -254,6 +280,8 @@ int main()
 	/////
 	//testLseekBelow0();
 	/////
+	testCreateLn();
+	////
 	ret = unmountFS();
 	if (ret != 0)
 	{

@@ -41,9 +41,10 @@ typedef struct BitMap{
 typedef struct INode{
   char file_name[33];
   unsigned short status;
-  unsigned short size;//size of file
+  short size;//size of file
   short blocks_assigned;
   short data_blocks[5];
+  short soft_link;
 } INode;
 
 

@@ -46,7 +46,7 @@ int mkFS(long deviceSize) {
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
-		inodes_tmp[i] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1}};
+		inodes_tmp[i] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1};
 	}
 
 	//Declare bitmap size
@@ -189,7 +189,9 @@ int removeFile(char *fileName)
 			break;
 		}
 	}
-	if(iNodeIndex < 0) return -1;//file does not exist: error code -1 
+
+	//file does not exist: error code -1 
+	if(iNodeIndex < 0) return -1;
 
 	//clean bitmap only when needed
 	if(inodes[iNodeIndex].size > 0){
@@ -207,7 +209,7 @@ int removeFile(char *fileName)
 
 	//clean inode actually removes file from filesystem
 	//(but data previously written in disk remains the same until overwritten)
-	inodes[iNodeIndex] = (INode){"",FREE,0,0,{}};
+	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1};
 
 	return 0;
 }
@@ -226,7 +228,15 @@ int openFile(char *fileName)
 			break;
 		}
 	}
-	if(iNodeIndex == -1) return -1;//file does not exist
+
+	//file does not exist
+	if(iNodeIndex == -1) return -1;
+
+	//check if inode is soft link
+	if(inodes[iNodeIndex].soft_link != -1){
+		//look for original file
+		iNodeIndex = inodes[iNodeIndex].soft_link;
+	}
 
 	//look for free entry in SFT
 	int fileEntryIndex = -1;
@@ -236,7 +246,9 @@ int openFile(char *fileName)
 			break;
 		}
 	}
-	if(fileEntryIndex == -1) return -2;//not anough entries in filetable
+
+	//not anough entries in filetable
+	if(fileEntryIndex == -1) return -2;
 
 	//set values in filetable entry
 	filetable.entries[fileEntryIndex].fd = fileEntryIndex;
@@ -244,7 +256,8 @@ int openFile(char *fileName)
 	filetable.entries[fileEntryIndex].refCount = 1;
 	filetable.entries[fileEntryIndex].inodeIdx = iNodeIndex;
 	
-	return fileEntryIndex;//file descriptor
+	//file descriptor
+	return fileEntryIndex;
 }
 
 /*
@@ -492,8 +505,47 @@ int closeFileIntegrity(int fileDescriptor)
  */
 int createLn(char *fileName, char *linkName)
 {
-	//TODO:
-    return -1;
+	//Check if filename exists
+	int iNodeIndex = -1; 
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, fileName) == 0){
+			iNodeIndex = i;
+			break;
+		}
+	}
+
+	//file does not exist
+	if(iNodeIndex == -1) return -1;
+
+	//check if link destination is not a soft link
+	if(inodes[iNodeIndex].soft_link == -1) return -2;
+
+	//check if link name is available
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, linkName) == 0){
+			return -2;
+		}
+	}
+
+	//Check for free inode scanning through inodes array
+	int freeInodeIndex = -1;
+	for(int i = 0; i < superblock.inodes; i++){
+		if(inodes[i].status == FREE) {
+			//if free inode found set up info
+			freeInodeIndex = i;
+			inodes[i].status = USED;//mark inode as used
+			inodes[freeInodeIndex].size = -1;
+			inodes[freeInodeIndex].blocks_assigned = -1;
+			strcpy(inodes[freeInodeIndex].file_name, linkName);
+			inodes[freeInodeIndex].soft_link = iNodeIndex;
+			break;
+		}
+	}
+
+	//no free inodes left
+	if(freeInodeIndex == -1) return -2;
+
+	return 0;
 }
 
 /*
