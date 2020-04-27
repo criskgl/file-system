@@ -300,7 +300,7 @@ int main()
 	/////
 	//testWriteMoreThanBlock();
 	/////
-	testReadFileNoOffset();
+	//testReadFileNoOffset();
 	/////
 	//testLseekEnd();
 	/////

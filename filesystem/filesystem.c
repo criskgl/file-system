@@ -279,10 +279,10 @@ int closeFile(int fileDescriptor)
 	if(fd < 0) return -1;
 
 	//free filetable entry
-	filetable.entries[fileDescriptor].fd = MAX_FILES+1;
-	filetable.entries[fileDescriptor].inodeIdx = MAX_FILES+1;
-	filetable.entries[fileDescriptor].offset = 0;
-	filetable.entries[fileDescriptor].refCount = 0;
+	filetable.entries[fileDescriptor].fd = -1;
+	filetable.entries[fileDescriptor].inodeIdx = -1;
+	filetable.entries[fileDescriptor].offset = -1;
+	filetable.entries[fileDescriptor].refCount = -1;
 
 	return 0;
 }
@@ -542,7 +542,7 @@ int createLn(char *fileName, char *linkName)
 	if(iNodeIndex == -1) return -1;
 
 	//check if link destination is not a soft link
-	if(inodes[iNodeIndex].soft_link == -1) return -2;
+	if(inodes[iNodeIndex].soft_link != -1) return -2;
 
 	//check if link name is available
 	for(int i = 0; i < superblock.inodes; i++){
