@@ -350,12 +350,35 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 	int currentBlock = fileEntry.offset/BLOCK_SIZE;
 	int bytesLeftToWrite = numBytes;
 
+
 	while(bytesLeftToWrite > 0){
+		
 		//create a buffer for the new block and flush it
 		char block_buffer[BLOCK_SIZE];
 		for(int i=0; i<sizeof(block_buffer); i++){
-			block_buffer[i] = 'W';
+			block_buffer[i] = '_';
 		}
+		//SPECIAL CASE FOR LAST BLOCK
+		if(inodes[iNodeIndex].blocks_assigned == MAX_FILE_SIZE/BLOCK_SIZE){
+			int bytesAlreadyInBlock = filetable.entries[fileDescriptor].offset - currentBlock*BLOCK_SIZE;
+			int lastAllowedBytes = BLOCK_SIZE - bytesAlreadyInBlock;
+			int bytesToWriteFromBuffer = 0;
+			//take minimum between space left in last block and bytes left to write
+			if(bytesLeftToWrite < lastAllowedBytes){
+				bytesToWriteFromBuffer = bytesLeftToWrite;
+			}else{
+				bytesToWriteFromBuffer = lastAllowedBytes;
+			}
+			//Write to block
+			//Save bytes already on disk block
+			if (bread(DEVICE_IMAGE, inodes[iNodeIndex].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
+			memcpy(&block_buffer[bytesAlreadyInBlock], (char *)buffer + (numBytes-bytesLeftToWrite), bytesToWriteFromBuffer);
+			filetable.entries[fd].offset += bytesToWriteFromBuffer;
+			inodes[iNodeIndex].size += bytesToWriteFromBuffer;
+			if (bwrite(DEVICE_IMAGE, inodes[iNodeIndex].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
+			return bytesToWriteFromBuffer;
+		}
+		//END SPECIAL CASE FOR LAST BLOCK
 
 		//Block has not been assigned
 		if(inodes[iNodeIndex].data_blocks[currentBlock] == -1){
@@ -364,6 +387,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 				//search for next free block on bitmap and assign it to inode
 				if(bitmap_getbit(bitmap.map, i) == FREE){
 					inodes[iNodeIndex].data_blocks[currentBlock] = i;
+					inodes[iNodeIndex].blocks_assigned ++;
 					bitmap_setbit(bitmap.map, i, USED);
 					break;
 				}
@@ -373,32 +397,32 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 
 			//fill up buffer with new bytes
 			if(bytesLeftToWrite<BLOCK_SIZE){
-				memcpy(block_buffer, (char *)&buffer + (numBytes-bytesLeftToWrite), bytesLeftToWrite);
+				memcpy(block_buffer, (char *)buffer + (numBytes-bytesLeftToWrite), bytesLeftToWrite);
+				filetable.entries[fileDescriptor].offset += bytesLeftToWrite;
 				bytesLeftToWrite = 0;
-				fileEntry.offset += bytesLeftToWrite;
 			}else{
-				memcpy(block_buffer, (char *)&buffer + (numBytes-bytesLeftToWrite), BLOCK_SIZE);
+				memcpy(block_buffer, (char *)buffer + (numBytes-bytesLeftToWrite), BLOCK_SIZE);
 				bytesLeftToWrite -= BLOCK_SIZE;
-				fileEntry.offset += BLOCK_SIZE;
+				filetable.entries[fileDescriptor].offset += BLOCK_SIZE;
 			}
 			
 		}else{ 
 		//Block has been assigned before (and could contain data)
 
 			//Calculate bytes already written in block and update offset
-			int bytesAlreadyInBlock = fileEntry.offset - currentBlock*BLOCK_SIZE;
+			int bytesAlreadyInBlock = filetable.entries[fileDescriptor].offset - currentBlock*BLOCK_SIZE;
 
 			//Save bytes already on disk block
 			if (bread(DEVICE_IMAGE, inodes[iNodeIndex].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
 
 			if(bytesLeftToWrite<BLOCK_SIZE-bytesAlreadyInBlock){
-				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)&buffer + (numBytes-bytesLeftToWrite), bytesLeftToWrite);
+				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)buffer + (numBytes-bytesLeftToWrite), bytesLeftToWrite);
+				filetable.entries[fileDescriptor].offset += bytesLeftToWrite;
 				bytesLeftToWrite = 0;
-				fileEntry.offset += bytesLeftToWrite;
 			}else{
-				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)&buffer + (numBytes-bytesLeftToWrite), BLOCK_SIZE-bytesAlreadyInBlock);
+				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)buffer + (numBytes-bytesLeftToWrite), BLOCK_SIZE-bytesAlreadyInBlock);
+				filetable.entries[fileDescriptor].offset += BLOCK_SIZE-bytesAlreadyInBlock;
 				bytesLeftToWrite -= BLOCK_SIZE-bytesAlreadyInBlock;
-				fileEntry.offset += BLOCK_SIZE-bytesAlreadyInBlock;
 			}
 		}
 
@@ -408,7 +432,7 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 		//update current block
 		currentBlock++;
 	}
-
+	inodes[iNodeIndex].size += numBytes-bytesLeftToWrite; 
 	return numBytes-bytesLeftToWrite;
 }
 
