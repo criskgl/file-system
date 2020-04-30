@@ -578,6 +578,24 @@ int createLn(char *fileName, char *linkName)
  */
 int removeLn(char *linkName)
 {
-	//TODO:
-    return -2;
+	//Check if filename exists
+	int iNodeIndex = -1; 
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, linkName) == 0){
+			iNodeIndex = i;
+			break;
+		}
+	}
+
+	//file does not exist
+	if(iNodeIndex == -1) return -1;
+
+	//check if target link is not a soft link, if so return back error
+	if(inodes[iNodeIndex].soft_link != -1) return -2;
+
+	//clean inode actually removes file from filesystem
+	//(but data previously written in disk remains the same until overwritten)
+	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1};
+
+	return 0;
 }
