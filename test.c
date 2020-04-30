@@ -26,6 +26,20 @@
 #define DEV_SIZE N_BLOCKS *BLOCK_SIZE // Device size, in bytes
 
 
+
+
+void createFileWithNameTooLong(){ 
+    char * filename = "123456789123456789123456789123456789.txt";
+    int ret = createFile(filename);
+
+    if (ret == -2)
+	{
+        fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFileWithNameTooLong ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+    	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFileWithNameTooLong ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
 void fileNameAlreadyExists(){ 
     char* filename1 = "file.txt";
     createFile(filename1);
@@ -151,10 +165,10 @@ void testReadFileNoOffset(){
 	}
 	closeFile(fd);
 	fd = openFile(filename1);
-	char read_buf[2048];
-	ret = readFile(fd, read_buf, 20000);
+	char read_buf[212];
+	ret = readFile(fd, read_buf, 212);
 	if(ret == -1) fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testReadFileNoOffset ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
-	if(strcmp(read_buf, buffer) == 0){
+	if(strncmp(read_buf, buffer,212) == 0){
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testReadFileNoOffset ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 	}else{
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testReadFileNoOffset ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
@@ -255,6 +269,35 @@ void testCreateLn(){
 	}
 }
 
+void testRemoveLn(){ 
+	char* filename = "originalFile.txt";
+    createFile(filename);
+	int fd = openFile(filename);
+
+	writeFile(fd, "0123456789", 10);
+	
+	closeFile(fd);
+
+	char* linkname = "linkToOriginalFile.txt";
+
+	createLn(filename, linkname);
+
+	fd = openFile(linkname);
+
+	char read_buf[10];
+	readFile(fd, read_buf, 10);
+
+	closeFile(fd);
+
+	int ret  = removeLn(linkname);
+	if (ret == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testRemoveLn ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testRemoveLn ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
 int main()
 {
 	int ret;
@@ -289,29 +332,34 @@ int main()
 	}
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
-	///////
-	//fileWasDeleted();
 	//////
-	//testOpenFile();
+	createFileWithNameTooLong();
 	//////
-	//testCloseFile();
+	fileWasDeleted();
+	//////
+	testOpenFile();
+	//////
+	testCloseFile();
 	/////
-	//testWriteLessThanBlock();
+	testWriteLessThanBlock();
 	/////
-	//testWriteMoreThanBlock();
+	testWriteMoreThanBlock();
 	/////
-	//testReadFileNoOffset();
+	testReadFileNoOffset();
 	/////
-	//testLseekEnd();
+	testLseekEnd();
 	/////
-	//testLseekBegin();
+	testLseekBegin();
 	/////
-	//testLseekAfterSize();
+	testLseekAfterSize();
 	/////
-	//testLseekBelow0();
+	testLseekBelow0();
 	/////
 	testCreateLn();
 	////
+	testRemoveLn();
+	////
+
 	ret = unmountFS();
 	if (ret != 0)
 	{

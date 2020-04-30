@@ -147,12 +147,15 @@ int unmountFS(void)
  */
 int createFile(char *fileName)
 {
-	//TODO:: Integrity
 
 	//Check if filename does not already exist
 	for(int i = 0; i < superblock.inodes; i++){
 		if(strcmp(inodes[i].file_name, fileName) == 0) return -1;
 	}
+
+	//check if length of name is less than 32 bytes
+	int tmp = strlen(fileName);
+	if(tmp > 32) return -2;
 
 	//Check for free inode scanning through inodes array
 	int freeInodeIndex = -1;
@@ -178,9 +181,7 @@ int createFile(char *fileName)
  * @return	0 if success, -1 if the file does not exist, -2 in case of error..
  */
 int removeFile(char *fileName)
-{
-	//TODO: Check before reomving file completelly from disk (existance of links)
-	
+{	
 	//Check if file name exists within the filesystem
 	int iNodeIndex = -1;
 	for(int i = 0; i < superblock.inodes; i++){
@@ -294,8 +295,6 @@ int closeFile(int fileDescriptor)
  */
 int readFile(int fileDescriptor, void *buffer, int numBytes)
 {	
-	//TODO: can be optimized! (do not use master_buf)
-
 	//check if fileDescriptor is valid
 	int fd = -1;
 	for(int i = 0; i < MAX_FILES; i++){
@@ -314,8 +313,9 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 	//check if file is not empty or if offset is at end of written bytes
 	if(inode.size == 0 || inode.size == fileEntry.offset) return 0;
 
-	//read all file to buffer
-	char master_buf[5*BLOCK_SIZE];
+	//Read all file to buffer
+	int offset = filetable.entries[fileDescriptor].offset;
+	char master_buf[inodes[InodeIndex].blocks_assigned*BLOCK_SIZE];
 	int bytesRead = 0;
 	int currentBlock = 0;
 	while(bytesRead < inode.size){
@@ -323,8 +323,47 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 		bytesRead += BLOCK_SIZE;
 		currentBlock++;
 	}
-	memcpy(buffer, master_buf, inode.size - fileEntry.offset);
-	return bytesRead-fileEntry.offset;
+	//Masterbuf at this points looks something like:
+	//[fffff][fffff][fff000]
+	//			^
+	//        offset
+	//We would need to return "fffff"
+
+	int bytesToPutInBuf = numBytes;
+	if(offset + numBytes > inode.size){
+		bytesToPutInBuf = inode.size - offset;
+	}
+	memcpy(buffer, &master_buf[offset], bytesToPutInBuf);
+	filetable.entries[fileDescriptor].offset = bytesToPutInBuf;
+	return bytesToPutInBuf;
+	
+	//------------------------------------------------------------------------------------//
+
+	//Read all file to buffer
+	/*
+	int offset = filetable.entries[fileDescriptor].offset;
+	int startBlock = offset/BLOCK_SIZE;
+	int endBlock = (offset+numBytes)/BLOCK_SIZE;
+	char master_buf[(endBlock - startBlock)*BLOCK_SIZE];
+	int currentBlock = startBlock;
+	int bytesRead = 0;
+
+
+	while(currentBlock < endBlock){
+		//if trying to read more than 5 blocks
+		if(currentBlock == inodes[InodeIndex].blocks_assigned) break;
+		
+		if (bread(DEVICE_IMAGE, inode.data_blocks[currentBlock], ((char *)&(master_buf[bytesRead]))) == -1) return -1;
+		bytesRead += BLOCK_SIZE;
+		currentBlock++;
+	}
+
+	int lastByteToReturn = numBytes;
+	if(numBytes + offset > inodes[InodeIndex].size){
+		lastByteToReturn = inodes[InodeIndex].size;
+	}
+	memcpy(buffer, master_buf, );
+	*/
 }
 
 /*
@@ -578,7 +617,7 @@ int createLn(char *fileName, char *linkName)
  */
 int removeLn(char *linkName)
 {
-	//Check if filename exists
+	//Check if linkName exists
 	int iNodeIndex = -1; 
 	for(int i = 0; i < superblock.inodes; i++){
 		if(strcmp(inodes[i].file_name, linkName) == 0){
@@ -591,7 +630,7 @@ int removeLn(char *linkName)
 	if(iNodeIndex == -1) return -1;
 
 	//check if target link is not a soft link, if so return back error
-	if(inodes[iNodeIndex].soft_link != -1) return -2;
+	if(inodes[iNodeIndex].soft_link == -1) return -2;
 
 	//clean inode actually removes file from filesystem
 	//(but data previously written in disk remains the same until overwritten)
