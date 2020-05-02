@@ -30,32 +30,32 @@ static inline void bitmap_setbit(char *bitmap_, int i_, int val_) {
 typedef struct SuperBlock{
   unsigned short total_blocks;
   unsigned short inode_blocks;//blocks dedicated for inodes
+  //blocksize
   unsigned short inodes;//total inodes in FS
 } SuperBlock;//6 Bytes
 
 typedef struct BitMap{
-  unsigned short size;
-  char * map;
+  unsigned short size;//size in bytes of our bitmap
+  char * map;//pointer to first 8 bits of our bitmap
 } BitMap;//40 Bytes (including char* content)
 
 typedef struct INode{
-  char file_name[33];
-  unsigned short status;
+  char file_name[33];//name of  file
+  unsigned short status;//either FREE or USED
   short size;//size of file
-  short blocks_assigned;
-  short data_blocks[5];
-  short soft_link;
+  short blocks_assigned;//number of blocks currently assigned to hold data
+  short data_blocks[5];//block pointers
+  short soft_link;//field that holds inode number in case of being a softlink
 } INode;
 
 
 typedef struct FileTableEntry{
-  int fd;
-  int offset;
-  int refCount;
-  int inodeIdx;
+  int fd;//file descriptor
+  int offset;//pointer offset inside an open file
+  int inodeIdx;//inode associated with the openfile
 } FileTableEntry;
 
 typedef struct FileTable{
-  FileTableEntry entries[MAX_FILES];//TODO: Preguntar a Jose el maximo en esta tabla
+  FileTableEntry entries[MAX_FILES];//has a limitation of 48 open files
 } FileTable; 
 
