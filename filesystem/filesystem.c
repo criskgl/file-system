@@ -29,7 +29,7 @@ FileTable filetable;
  */
 int mkFS(long deviceSize) { 
 
-	if (deviceSize < MIN_DEV_SIZE || deviceSize > MAX_DEV_SIZE) return -1;
+	if (deviceSize <= MIN_DEV_SIZE || deviceSize >= MAX_DEV_SIZE) return -1;
 
 	//Define basic structures for file system
 	SuperBlock superblock_tmp;
