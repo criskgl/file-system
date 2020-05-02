@@ -42,6 +42,7 @@ int mkFS(long deviceSize) {
 	//Fill up superblock parameters
 	superblock_tmp.total_blocks = deviceSize/BLOCK_SIZE;
 	superblock_tmp.inode_blocks = BLOCK_SIZE/sizeof(INode);
+	superblock.block_size = BLOCK_SIZE;
 	superblock_tmp.inodes = MAX_FILES;
 
 	//Create array of Inodes
@@ -89,7 +90,6 @@ int mkFS(long deviceSize) {
  */
 int mountFS(void)
 {
-	//TODO::Check for incoming errors in disk.
 
 	//Save 2 first blocks of disk in memory (structures)
 	char block_buffer[BLOCK_SIZE*2];
@@ -104,7 +104,6 @@ int mountFS(void)
 	memcpy(&inodes, &block_buffer[sizeof(superblock)+bitmap.size], sizeof(INode)*superblock.inodes);
 	//Mark device as mounted
 	mounted = 1;
-
 	return 0;
 }
 
@@ -242,7 +241,7 @@ int openFile(char *fileName)
 	//look for free entry in SFT
 	int fileEntryIndex = -1;
 	for(int i = 0; i < MAX_FILES; i++){
-		if(filetable.entries[i].refCount == 0){
+		if(filetable.entries[i].used == 0){
 			fileEntryIndex = i;
 			break;
 		}
@@ -254,7 +253,7 @@ int openFile(char *fileName)
 	//set values in filetable entry
 	filetable.entries[fileEntryIndex].fd = fileEntryIndex;
 	filetable.entries[fileEntryIndex].offset = 0;
-	filetable.entries[fileEntryIndex].refCount = 1;
+	filetable.entries[fileEntryIndex].used = 1;
 	filetable.entries[fileEntryIndex].inodeIdx = iNodeIndex;
 	
 	//file descriptor
@@ -283,7 +282,7 @@ int closeFile(int fileDescriptor)
 	filetable.entries[fileDescriptor].fd = -1;
 	filetable.entries[fileDescriptor].inodeIdx = -1;
 	filetable.entries[fileDescriptor].offset = -1;
-	filetable.entries[fileDescriptor].refCount = -1;
+	filetable.entries[fileDescriptor].used = -1;
 
 	return 0;
 }

@@ -28,9 +28,9 @@ static inline void bitmap_setbit(char *bitmap_, int i_, int val_) {
 }
 
 typedef struct SuperBlock{
-  unsigned short total_blocks;
+  unsigned short total_blocks;//total blocks allocated in our FS
   unsigned short inode_blocks;//blocks dedicated for inodes
-  //blocksize
+  short block_size;//will be 2048 Bytes
   unsigned short inodes;//total inodes in FS
 } SuperBlock;//6 Bytes
 
@@ -52,6 +52,7 @@ typedef struct INode{
 typedef struct FileTableEntry{
   int fd;//file descriptor
   int offset;//pointer offset inside an open file
+  int used;
   int inodeIdx;//inode associated with the openfile
 } FileTableEntry;
 
