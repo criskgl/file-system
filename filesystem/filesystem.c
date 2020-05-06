@@ -499,8 +499,54 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 
 int checkFile (char * fileName)
 {
-	//TODO:
-    return -2;
+	//Check if filename exists
+	int iNodeIndex = -1; 
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, fileName) == 0){
+			iNodeIndex = i;
+			break;
+		}
+	}
+
+	//File does not exist
+	if(iNodeIndex == -1) return -1;
+
+
+	int fd = openFile(fileName);
+
+	//check if file was already open
+	for(int i = 0; i < MAX_FILES; i++){
+		if(strcmp(inodes[filetable.entries[i].inodeIdx].file_name, fileName) == 0) return -2;
+	}
+
+	//Check if inode is soft link
+	if(inodes[iNodeIndex].soft_link != -1){
+		//look for original file
+		iNodeIndex = inodes[iNodeIndex].soft_link;
+	}
+
+	//Check if integrity has not been established
+	if(inodes[iNodeIndex].integrity == -1) return -2;
+
+	//Read contesnts of file to a buffer
+	fd = openFile(fileName);
+	unsigned int sizeOfFile = inodes[iNodeIndex].size;
+	unsigned char buffer[sizeOfFile];
+	int ret = readFile(fd, buffer, sizeOfFile);
+
+	//read succesfully
+	if(ret != sizeOfFile) return -2;
+
+	//perform integrity check
+	if(inodes[iNodeIndex].integrity != CRC32(buffer, sizeOfFile)){
+		//file corrupted
+		closeFile(fd);
+		return -1;
+	} 
+
+	//file preserves integrity
+	closeFile(fd);
+    return 0;
 }
 
 /*
@@ -539,6 +585,7 @@ int includeIntegrity (char * fileName)
 	int ret = readFile(fd, buffer, sizeOfFile);
 	//check if retrieved contents are same as size
 	if(ret != sizeOfFile){
+		closeFile(fd);
 		return -2;
 	}
 	//Perform integrity (CRC32) calculation on the contents of the file(now in buffer)
@@ -547,6 +594,8 @@ int includeIntegrity (char * fileName)
 	//Save the integrity value in the inode
 	inodes[iNodeIndex].integrity = integrityValue;
 
+	//integrity has been set
+	closeFile(fd);
     return 0;
 }
 
@@ -556,7 +605,9 @@ int includeIntegrity (char * fileName)
  */
 int openFileIntegrity(char *fileName)
 {
-	//TODO:	
+	//if()	
+
+	//openFile(fileName)
     return -2;
 }
 
