@@ -18,6 +18,8 @@
 #define MAX_DEV_SIZE 614400 //NF6
 #define FREE 0
 #define USED 1
+#define FALSE 0
+#define TRUE 1
 
 #define bitmap_getbit(bitmap_, i_) (bitmap_[i_ >> 3] & (1 << (i_ & 0x07)))
 static inline void bitmap_setbit(char *bitmap_, int i_, int val_) {
@@ -46,6 +48,7 @@ typedef struct INode{
   short blocks_assigned;//number of blocks currently assigned to hold data
   short data_blocks[5];//block pointers
   short soft_link;//field that holds inode number in case of being a softlink
+  short has_integrity;
   uint32_t integrity;//field that hold a CRC 32 bits to validate integrity of file contents
 } INode;
 

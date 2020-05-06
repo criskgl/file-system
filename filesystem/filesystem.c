@@ -47,7 +47,7 @@ int mkFS(long deviceSize) {
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
-		inodes_tmp[i] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1, -1};
+		inodes_tmp[i] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1,FALSE,0};
 	}
 
 	//Declare bitmap size
@@ -209,7 +209,7 @@ int removeFile(char *fileName)
 
 	//clean inode actually removes file from filesystem
 	//(but data previously written in disk remains the same until overwritten)
-	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1,-1};
+	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1,FALSE,0};
 
 	return 0;
 }
@@ -511,13 +511,12 @@ int checkFile (char * fileName)
 	//File does not exist
 	if(iNodeIndex == -1) return -1;
 
-
-	int fd = openFile(fileName);
-
 	//check if file was already open
 	for(int i = 0; i < MAX_FILES; i++){
 		if(strcmp(inodes[filetable.entries[i].inodeIdx].file_name, fileName) == 0) return -2;
 	}
+
+	int fd = openFile(fileName);
 
 	//Check if inode is soft link
 	if(inodes[iNodeIndex].soft_link != -1){
@@ -526,7 +525,7 @@ int checkFile (char * fileName)
 	}
 
 	//Check if integrity has not been established
-	if(inodes[iNodeIndex].integrity == -1) return -2;
+	if(inodes[iNodeIndex].has_integrity == FALSE) return -2;
 
 	//Read contesnts of file to a buffer
 	fd = openFile(fileName);
@@ -575,10 +574,10 @@ int includeIntegrity (char * fileName)
 	}
 
 	//Check if integrity has already been established
-	if(inodes[iNodeIndex].integrity != -1) return -2;
+	if(inodes[iNodeIndex].has_integrity == TRUE) return -2;
 
 
-	//Read contesnts of file to a buffer
+	//Read contents of file to a buffer
 	int fd = openFile(fileName);
 	unsigned int sizeOfFile = inodes[iNodeIndex].size;
 	unsigned char buffer[sizeOfFile];
@@ -593,6 +592,7 @@ int includeIntegrity (char * fileName)
 
 	//Save the integrity value in the inode
 	inodes[iNodeIndex].integrity = integrityValue;
+	inodes[iNodeIndex].has_integrity = TRUE;
 
 	//integrity has been set
 	closeFile(fd);
@@ -693,7 +693,7 @@ int removeLn(char *linkName)
 
 	//clean inode actually removes file from filesystem
 	//(but data previously written in disk remains the same until overwritten)
-	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1,-1};
+	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1,FALSE,0};
 
 	return 0;
 }
