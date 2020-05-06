@@ -46,6 +46,7 @@ typedef struct INode{
   short blocks_assigned;//number of blocks currently assigned to hold data
   short data_blocks[5];//block pointers
   short soft_link;//field that holds inode number in case of being a softlink
+  uint32_t integrity;//field that hold a CRC 32 bits to validate integrity of file contents
 } INode;
 
 

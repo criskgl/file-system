@@ -29,7 +29,7 @@ FileTable filetable;
  */
 int mkFS(long deviceSize) { 
 
-	if (deviceSize <= MIN_DEV_SIZE || deviceSize >= MAX_DEV_SIZE) return -1;
+	if (deviceSize < MIN_DEV_SIZE || deviceSize > MAX_DEV_SIZE) return -1;
 
 	//Define basic structures for file system
 	SuperBlock superblock_tmp;
@@ -47,7 +47,7 @@ int mkFS(long deviceSize) {
 
 	//Create array of Inodes
 	for(int i=0; i<MAX_FILES; i++){
-		inodes_tmp[i] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1};
+		inodes_tmp[i] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1, -1};
 	}
 
 	//Declare bitmap size
@@ -209,7 +209,7 @@ int removeFile(char *fileName)
 
 	//clean inode actually removes file from filesystem
 	//(but data previously written in disk remains the same until overwritten)
-	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1};
+	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1,-1};
 
 	return 0;
 }
@@ -336,33 +336,6 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 	filetable.entries[fileDescriptor].offset = bytesToPutInBuf;
 	return bytesToPutInBuf;
 	
-	//------------------------------------------------------------------------------------//
-
-	//Read all file to buffer
-	/*
-	int offset = filetable.entries[fileDescriptor].offset;
-	int startBlock = offset/BLOCK_SIZE;
-	int endBlock = (offset+numBytes)/BLOCK_SIZE;
-	char master_buf[(endBlock - startBlock)*BLOCK_SIZE];
-	int currentBlock = startBlock;
-	int bytesRead = 0;
-
-
-	while(currentBlock < endBlock){
-		//if trying to read more than 5 blocks
-		if(currentBlock == inodes[InodeIndex].blocks_assigned) break;
-		
-		if (bread(DEVICE_IMAGE, inode.data_blocks[currentBlock], ((char *)&(master_buf[bytesRead]))) == -1) return -1;
-		bytesRead += BLOCK_SIZE;
-		currentBlock++;
-	}
-
-	int lastByteToReturn = numBytes;
-	if(numBytes + offset > inodes[InodeIndex].size){
-		lastByteToReturn = inodes[InodeIndex].size;
-	}
-	memcpy(buffer, master_buf, );
-	*/
 }
 
 /*
@@ -537,8 +510,44 @@ int checkFile (char * fileName)
 
 int includeIntegrity (char * fileName)
 {
-	//TODO:
-    return -2;
+	//Check if filename exists
+	int iNodeIndex = -1; 
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, fileName) == 0){
+			iNodeIndex = i;
+			break;
+		}
+	}
+
+	//File does not exist
+	if(iNodeIndex == -1) return -1;
+
+	//Check if inode is soft link
+	if(inodes[iNodeIndex].soft_link != -1){
+		//look for original file
+		iNodeIndex = inodes[iNodeIndex].soft_link;
+	}
+
+	//Check if integrity has already been established
+	if(inodes[iNodeIndex].integrity != -1) return -2;
+
+
+	//Read contesnts of file to a buffer
+	int fd = openFile(fileName);
+	unsigned int sizeOfFile = inodes[iNodeIndex].size;
+	unsigned char buffer[sizeOfFile];
+	int ret = readFile(fd, buffer, sizeOfFile);
+	//check if retrieved contents are same as size
+	if(ret != sizeOfFile){
+		return -2;
+	}
+	//Perform integrity (CRC32) calculation on the contents of the file(now in buffer)
+	uint32_t integrityValue = CRC32(buffer, sizeOfFile);
+
+	//Save the integrity value in the inode
+	inodes[iNodeIndex].integrity = integrityValue;
+
+    return 0;
 }
 
 /*
@@ -633,7 +642,7 @@ int removeLn(char *linkName)
 
 	//clean inode actually removes file from filesystem
 	//(but data previously written in disk remains the same until overwritten)
-	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1};
+	inodes[iNodeIndex] = (INode){ "",FREE,0,0,{-1,-1,-1,-1,-1},-1,-1};
 
 	return 0;
 }

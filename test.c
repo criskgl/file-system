@@ -348,6 +348,26 @@ void testRemoveLn(){
 	}
 }
 
+void testIncludeFileIntegrity(){ 
+	char* filename = "fileToIncludeIntegrity.txt";
+    createFile(filename);
+	int fd = openFile(filename);
+
+	writeFile(fd, "0123456789", 10);
+	
+	closeFile(fd);
+
+	int ret = includeIntegrity(filename);
+
+	if (ret == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testIncludeFileIntegrity ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testIncludeFileIntegrity ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
+
 int main()
 {
 	int ret;
@@ -412,6 +432,8 @@ int main()
 	testCreateLn();
 	////
 	testRemoveLn();
+	////
+	testIncludeFileIntegrity();
 	////
 
 	ret = unmountFS();
