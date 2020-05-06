@@ -266,6 +266,12 @@ int openFile(char *fileName)
  */
 int closeFile(int fileDescriptor)
 {
+
+	//check if file has integrity
+	if(inodes[filetable.entries[fileDescriptor].inodeIdx].has_integrity == TRUE){
+		return -1;
+	}
+
 	//Check if filedescriptor exists
 	//--if it exists means that the file is open
 	int fd = -1;
@@ -595,7 +601,7 @@ int includeIntegrity (char * fileName)
 	inodes[iNodeIndex].has_integrity = TRUE;
 
 	//integrity has been set
-	closeFile(fd);
+	closeFileIntegrity(fd);
     return 0;
 }
 
@@ -605,10 +611,24 @@ int includeIntegrity (char * fileName)
  */
 int openFileIntegrity(char *fileName)
 {
-	//if()	
+	//check file integrity
+	int ret = checkFile(fileName);
+	if(ret == -1){	
+		return -2;
+	}else if(ret == -2){
+		return -3;
+	}
 
-	//openFile(fileName)
-    return -2;
+	int fd = openFile(fileName);
+
+	if(fd == -1) return -1;
+
+	//file does not have integrity
+	if(inodes[filetable.entries[fd].inodeIdx].has_integrity == FALSE){	
+		return -3;
+	}
+
+    return fd;
 }
 
 /*
@@ -617,8 +637,37 @@ int openFileIntegrity(char *fileName)
  */
 int closeFileIntegrity(int fileDescriptor)
 {
-	//TODO:
-    return -1;
+
+	//check if file has integrity
+	if(inodes[filetable.entries[fileDescriptor].inodeIdx].has_integrity == FALSE){
+		return -1;
+	}
+
+	unsigned int sizeOfFile = inodes[filetable.entries[fileDescriptor].inodeIdx].size;
+	unsigned char buffer[sizeOfFile];
+	lseekFile(fileDescriptor,0,FS_SEEK_BEGIN);
+	int ret = readFile(fileDescriptor, buffer, sizeOfFile);
+
+	//check if retrieved contents are same as size
+	if(ret != sizeOfFile){
+		closeFile(fileDescriptor);
+		return -1;
+	}
+
+	//Perform integrity (CRC32) calculation on the contents of the file(now in buffer)
+	uint32_t integrityValue = CRC32(buffer, sizeOfFile);
+
+	//Save the integrity value in the inode
+	inodes[filetable.entries[fileDescriptor].inodeIdx].integrity = integrityValue;
+	inodes[filetable.entries[fileDescriptor].inodeIdx].has_integrity = TRUE;
+
+	//perform close operation
+	filetable.entries[fileDescriptor].fd = -1;
+	filetable.entries[fileDescriptor].inodeIdx = -1;
+	filetable.entries[fileDescriptor].offset = -1;
+	filetable.entries[fileDescriptor].used = -1;
+
+    return 0;
 }
 
 /*
