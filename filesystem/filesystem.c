@@ -42,7 +42,7 @@ int mkFS(long deviceSize) {
 	//Fill up superblock parameters
 	superblock_tmp.total_blocks = deviceSize/BLOCK_SIZE;
 	superblock_tmp.inode_blocks = BLOCK_SIZE/sizeof(INode);
-	superblock.block_size = BLOCK_SIZE;
+	superblock_tmp.block_size = BLOCK_SIZE;
 	superblock_tmp.inodes = MAX_FILES;
 
 	//Create array of Inodes
@@ -114,7 +114,7 @@ int mountFS(void)
  */
 int unmountFS(void)
 {
-	char block_buffer[BLOCK_SIZE*2];
+	char block_buffer[superblock.block_size*2];
 
 	//Pad the rest of the block
 	for(int i=0; i<sizeof(block_buffer); i++){
@@ -128,7 +128,7 @@ int unmountFS(void)
 
 	//Write data structures back to first 2 blocks of disk
 	if (bwrite(DEVICE_IMAGE, 0, ((char *)&(block_buffer))) == -1) return -1;
-	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[BLOCK_SIZE]))) == -1) return -1;
+	if (bwrite(DEVICE_IMAGE, 1, ((char *)&(block_buffer[superblock.block_size]))) == -1) return -1;
 
 	//Free up memory used
 	if(mounted == 1){
@@ -196,10 +196,10 @@ int removeFile(char *fileName)
 	//clean bitmap only when needed
 	if(inodes[iNodeIndex].size > 0){
 		int blocksOccupiedInInode;
-		if(inodes[iNodeIndex].size%BLOCK_SIZE == 0){
-			blocksOccupiedInInode = inodes[iNodeIndex].size/BLOCK_SIZE;
+		if(inodes[iNodeIndex].size%superblock.block_size == 0){
+			blocksOccupiedInInode = inodes[iNodeIndex].size/superblock.block_size;
 		}else{
-			blocksOccupiedInInode = inodes[iNodeIndex].size/BLOCK_SIZE + 1;
+			blocksOccupiedInInode = inodes[iNodeIndex].size/superblock.block_size + 1;
 		}
 		for(int i = 0; i < blocksOccupiedInInode; i++){	
 			//free blocks
@@ -314,12 +314,12 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 
 	//Read all file to buffer
 	int offset = filetable.entries[fileDescriptor].offset;
-	char master_buf[inodes[InodeIndex].blocks_assigned*BLOCK_SIZE];
+	char master_buf[inodes[InodeIndex].blocks_assigned*superblock.block_size];
 	int bytesRead = 0;
 	int currentBlock = 0;
 	while(bytesRead < inode.size){
 		if (bread(DEVICE_IMAGE, inode.data_blocks[currentBlock], ((char *)&(master_buf[bytesRead]))) == -1) return -1;
-		bytesRead += BLOCK_SIZE;
+		bytesRead += superblock.block_size;
 		currentBlock++;
 	}
 	//Masterbuf at this points looks something like:
@@ -335,7 +335,7 @@ int readFile(int fileDescriptor, void *buffer, int numBytes)
 	memcpy(buffer, &master_buf[offset], bytesToPutInBuf);
 	filetable.entries[fileDescriptor].offset = bytesToPutInBuf;
 	return bytesToPutInBuf;
-	
+
 }
 
 /*
@@ -358,21 +358,21 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 
 	FileTableEntry fileEntry = filetable.entries[fileDescriptor];
 	int iNodeIndex = fileEntry.inodeIdx;
-	int currentBlock = fileEntry.offset/BLOCK_SIZE;
+	int currentBlock = fileEntry.offset/superblock.block_size;
 	int bytesLeftToWrite = numBytes;
 
 
 	while(bytesLeftToWrite > 0){
 		
 		//create a buffer for the new block and flush it
-		char block_buffer[BLOCK_SIZE];
+		char block_buffer[superblock.block_size];
 		for(int i=0; i<sizeof(block_buffer); i++){
 			block_buffer[i] = '_';
 		}
 		//SPECIAL CASE FOR LAST BLOCK
-		if(inodes[iNodeIndex].blocks_assigned == MAX_FILE_SIZE/BLOCK_SIZE){
-			int bytesAlreadyInBlock = filetable.entries[fileDescriptor].offset - currentBlock*BLOCK_SIZE;
-			int lastAllowedBytes = BLOCK_SIZE - bytesAlreadyInBlock;
+		if(inodes[iNodeIndex].blocks_assigned == MAX_FILE_SIZE/superblock.block_size){
+			int bytesAlreadyInBlock = filetable.entries[fileDescriptor].offset - currentBlock*superblock.block_size;
+			int lastAllowedBytes = superblock.block_size - bytesAlreadyInBlock;
 			int bytesToWriteFromBuffer = 0;
 			//take minimum between space left in last block and bytes left to write
 			if(bytesLeftToWrite < lastAllowedBytes){
@@ -407,33 +407,33 @@ int writeFile(int fileDescriptor, void *buffer, int numBytes)
 			}
 
 			//fill up buffer with new bytes
-			if(bytesLeftToWrite<BLOCK_SIZE){
+			if(bytesLeftToWrite<superblock.block_size){
 				memcpy(block_buffer, (char *)buffer + (numBytes-bytesLeftToWrite), bytesLeftToWrite);
 				filetable.entries[fileDescriptor].offset += bytesLeftToWrite;
 				bytesLeftToWrite = 0;
 			}else{
-				memcpy(block_buffer, (char *)buffer + (numBytes-bytesLeftToWrite), BLOCK_SIZE);
-				bytesLeftToWrite -= BLOCK_SIZE;
-				filetable.entries[fileDescriptor].offset += BLOCK_SIZE;
+				memcpy(block_buffer, (char *)buffer + (numBytes-bytesLeftToWrite), superblock.block_size);
+				bytesLeftToWrite -= superblock.block_size;
+				filetable.entries[fileDescriptor].offset += superblock.block_size;
 			}
 			
 		}else{ 
 		//Block has been assigned before (and could contain data)
 
 			//Calculate bytes already written in block and update offset
-			int bytesAlreadyInBlock = filetable.entries[fileDescriptor].offset - currentBlock*BLOCK_SIZE;
+			int bytesAlreadyInBlock = filetable.entries[fileDescriptor].offset - currentBlock*superblock.block_size;
 
 			//Save bytes already on disk block
 			if (bread(DEVICE_IMAGE, inodes[iNodeIndex].data_blocks[currentBlock], ((char *)&(block_buffer))) == -1) return -1;
 
-			if(bytesLeftToWrite<BLOCK_SIZE-bytesAlreadyInBlock){
+			if(bytesLeftToWrite<superblock.block_size-bytesAlreadyInBlock){
 				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)buffer + (numBytes-bytesLeftToWrite), bytesLeftToWrite);
 				filetable.entries[fileDescriptor].offset += bytesLeftToWrite;
 				bytesLeftToWrite = 0;
 			}else{
-				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)buffer + (numBytes-bytesLeftToWrite), BLOCK_SIZE-bytesAlreadyInBlock);
-				filetable.entries[fileDescriptor].offset += BLOCK_SIZE-bytesAlreadyInBlock;
-				bytesLeftToWrite -= BLOCK_SIZE-bytesAlreadyInBlock;
+				memcpy(&block_buffer[bytesAlreadyInBlock], (char *)buffer + (numBytes-bytesLeftToWrite), superblock.block_size-bytesAlreadyInBlock);
+				filetable.entries[fileDescriptor].offset += superblock.block_size-bytesAlreadyInBlock;
+				bytesLeftToWrite -= superblock.block_size-bytesAlreadyInBlock;
 			}
 		}
 
