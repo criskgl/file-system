@@ -409,6 +409,71 @@ void testOpenFileIntegrity(){
 	}
 }
 
+// NF11: Check if closeFile() cannot close a file with integrity
+void testCloseFileWithIntegrity(){ 
+	char* filename = "testCloseFileWithIntegrity.txt";
+    createFile(filename);
+	int fd = openFile(filename);
+
+	writeFile(fd, "integrity!", 10);
+
+	includeIntegrity(filename);
+	
+	int ret = closeFile(fd);
+
+	if (ret == -1)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCloseFileWithIntegrity ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCloseFileWithIntegrity ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
+// NF8: Check if openFile() cannot open a file with integrity
+void testOpenFileWithIntegrity(){ 
+	char* filename = "testOpenFileWithIntegrity.txt";
+    createFile(filename);
+	includeIntegrity(filename);
+	int fd = openFileIntegrity(filename);
+
+	writeFile(fd, "integrity!", 10);
+
+	closeFileIntegrity(fd);
+	
+	int ret = openFile(filename);
+
+	if (ret == -2)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testOpenFileWithIntegrity ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testOpenFileWithIntegrity ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
+void testOpenFileIntegrityLink(){ 
+	char* filename = "testOpenFileIntegrityLink.txt";
+    createFile(filename);
+	int fd = openFile(filename);
+
+	writeFile(fd, "integrity!", 10);
+
+	includeIntegrity(filename);
+	
+	closeFileIntegrity(fd);
+
+	char* linkname = "LinkToCheckIntegrity.txt";
+	createLn(filename, linkname);
+
+	int ret = openFileIntegrity(linkname);
+
+	if (ret >= 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testOpenFileIntegrityLink ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testOpenFileIntegrityLink ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
 void testCloseFileIntegrity(){ 
 	char* filename = "testCloseFileIntegrity.txt";
     createFile(filename);
@@ -446,6 +511,29 @@ void testCheckFileAlreadyOpen(){
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCheckFileAlreadyOpen ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 	}else{
 		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCheckFileAlreadyOpen ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
+void testCreateMoreThanMaxFiles(){ 
+
+	mkFS(DEV_SIZE);
+	mountFS();
+	
+	char filename[32];
+	for(int i=0; i<48; i++){
+		sprintf(filename, "testCreateMoreThanMaxFiles%d.txt", i);
+    	if(createFile(filename) != 0){
+			fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCreateMoreThanMaxFiles ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+		}
+	}
+	
+	int ret = createFile("testCreateMoreThanMaxFiles48.txt");
+
+	if (ret == -2)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCreateMoreThanMaxFiles ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testCreateMoreThanMaxFiles ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
 	}
 }
 
@@ -525,6 +613,15 @@ int main()
 	////
 	testCloseFileIntegrity();
 	////
+	testOpenFileIntegrityLink();
+	////
+	testCloseFileWithIntegrity();
+	////
+	testOpenFileWithIntegrity();
+	////
+	testCreateMoreThanMaxFiles();
+	////
+
 
 	ret = unmountFS();
 	if (ret != 0)

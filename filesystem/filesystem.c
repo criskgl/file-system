@@ -220,6 +220,7 @@ int removeFile(char *fileName)
  */
 int openFile(char *fileName)
 {
+
 	//Check if filename exists
 	int iNodeIndex = -1; 
 	for(int i = 0; i < superblock.inodes; i++){
@@ -231,6 +232,11 @@ int openFile(char *fileName)
 
 	//file does not exist
 	if(iNodeIndex == -1) return -1;
+
+	//check if file has integrity
+	if(inodes[iNodeIndex].has_integrity == TRUE){
+		return -2;
+	}
 
 	//check if inode is soft link
 	if(inodes[iNodeIndex].soft_link != -1){
@@ -505,24 +511,27 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 
 int checkFile (char * fileName)
 {
-	//Check if filename exists
-	int iNodeIndex = -1; 
-	for(int i = 0; i < superblock.inodes; i++){
-		if(strcmp(inodes[i].file_name, fileName) == 0){
-			iNodeIndex = i;
-			break;
-		}
-	}
-
-	//File does not exist
-	if(iNodeIndex == -1) return -1;
+	//TODO: Ask JOSE
 
 	//check if file was already open
 	for(int i = 0; i < MAX_FILES; i++){
 		if(strcmp(inodes[filetable.entries[i].inodeIdx].file_name, fileName) == 0) return -2;
 	}
 
-	int fd = openFile(fileName);
+	int fd = -1;
+	for(int i = 0; i < MAX_FILES; i++){
+		if(strcmp(inodes[filetable.entries[i].inodeIdx].file_name,fileName)== 0){
+			fd = i;
+			break;
+		}
+	}
+
+	int iNodeIndex = filetable.entries[fd].inodeIdx; 
+
+	//file not found
+	if(fd < 0){
+		return -2;
+	}
 
 	//Check if inode is soft link
 	if(inodes[iNodeIndex].soft_link != -1){
@@ -534,7 +543,6 @@ int checkFile (char * fileName)
 	if(inodes[iNodeIndex].has_integrity == FALSE) return -2;
 
 	//Read contesnts of file to a buffer
-	fd = openFile(fileName);
 	unsigned int sizeOfFile = inodes[iNodeIndex].size;
 	unsigned char buffer[sizeOfFile];
 	int ret = readFile(fd, buffer, sizeOfFile);
@@ -611,24 +619,57 @@ int includeIntegrity (char * fileName)
  */
 int openFileIntegrity(char *fileName)
 {
+
+	//Check if filename exists
+	int iNodeIndex = -1; 
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, fileName) == 0){
+			iNodeIndex = i;
+			break;
+		}
+	}
+
+	//file does not exist
+	if(iNodeIndex == -1) return -1;
+
+	//check if file has integrity
+	if(inodes[iNodeIndex].has_integrity == FALSE){
+		return -3; //Cannot open a file without integrity
+	}
+
 	//check file integrity
 	int ret = checkFile(fileName);
 	if(ret == -1){	
-		return -2;
+		return -2; //File is corrupted
 	}else if(ret == -2){
-		return -3;
+		return -3; //Other error
 	}
 
-	int fd = openFile(fileName);
-
-	if(fd == -1) return -1;
-
-	//file does not have integrity
-	if(inodes[filetable.entries[fd].inodeIdx].has_integrity == FALSE){	
-		return -3;
+	//check if inode is soft link
+	if(inodes[iNodeIndex].soft_link != -1){
+		//look for original file
+		iNodeIndex = inodes[iNodeIndex].soft_link;
 	}
 
-    return fd;
+	//look for free entry in SFT
+	int fileEntryIndex = -1;
+	for(int i = 0; i < MAX_FILES; i++){
+		if(filetable.entries[i].used == 0){
+			fileEntryIndex = i;
+			break;
+		}
+	}
+
+	//not anough entries in filetable
+	if(fileEntryIndex == -1) return -3;
+
+	//set values in filetable entry
+	filetable.entries[fileEntryIndex].fd = fileEntryIndex;
+	filetable.entries[fileEntryIndex].offset = 0;
+	filetable.entries[fileEntryIndex].used = 1;
+	filetable.entries[fileEntryIndex].inodeIdx = iNodeIndex;
+
+    return fileEntryIndex;
 }
 
 /*
