@@ -450,6 +450,25 @@ void testOpenFileWithIntegrity(){
 	}
 }
 
+// NF10: Check if openFileIntegrity() cannot open a file without integrity
+void testOpenFileIntegrityNoIntegrity(){ 
+	char* filename = "testOpenFileIntegrityNoIntegrity.txt";
+    createFile(filename);
+
+	int fd = openFile(filename);
+
+	closeFile(fd);
+	
+	int ret = openFileIntegrity(filename);
+
+	if (ret == -3)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testOpenFileIntegrityNoIntegrity ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testOpenFileIntegrityNoIntegrity ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
 void testOpenFileIntegrityLink(){ 
 	char* filename = "testOpenFileIntegrityLink.txt";
     createFile(filename);
@@ -624,6 +643,8 @@ int main()
 	testCheckFileAlreadyOpen();
 	////
 	testOpenFileIntegrity();
+	////
+	testOpenFileIntegrityNoIntegrity();
 	////
 	testCloseFileIntegrity();
 	////
