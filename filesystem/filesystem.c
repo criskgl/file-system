@@ -504,6 +504,10 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 	return 0;
 }
 
+
+
+
+
 /*
  * @brief	Checks the integrity of the file.
  * @return	0 if success, -1 if the file is corrupted, -2 in case of error.
@@ -511,25 +515,35 @@ int lseekFile(int fileDescriptor, long offset, int whence)
 
 int checkFile (char * fileName)
 {
-	//TODO: Ask JOSE
 
-	//check if file was already open
 	for(int i = 0; i < MAX_FILES; i++){
-		if(strcmp(inodes[filetable.entries[i].inodeIdx].file_name, fileName) == 0) return -2;
+		if(strcmp(inodes[filetable.entries[i].inodeIdx].file_name, fileName) == 0){
+			//File was already open
+			return -2;
+		}
 	}
-
+	//get fd for file
 	int fd = -1;
 	for(int i = 0; i < MAX_FILES; i++){
-		if(strcmp(inodes[filetable.entries[i].inodeIdx].file_name,fileName)== 0){
+		if(filetable.entries[i].used == -1){
+			//found free fd
 			fd = i;
+			//assign fields for filetable entry manually to
+			//be able to perform read later
 			break;
 		}
 	}
-
-	int iNodeIndex = filetable.entries[fd].inodeIdx; 
-
-	//file not found
-	if(fd < 0){
+		
+	//look for inode associated with filename to assign it to entry in filetable
+	int iNodeIndex = -1;		
+	for(int i = 0; i < superblock.inodes; i++){
+		if(strcmp(inodes[i].file_name, fileName) == 0){
+			iNodeIndex = i;
+			break;
+		}
+	}
+	if(iNodeIndex == -1){
+		//file not found
 		return -2;
 	}
 
@@ -539,10 +553,16 @@ int checkFile (char * fileName)
 		iNodeIndex = inodes[iNodeIndex].soft_link;
 	}
 
+	//set filetable entry values
+	filetable.entries[fd].fd = fd;
+	filetable.entries[fd].inodeIdx = iNodeIndex;
+	filetable.entries[fd].offset = 0;
+	filetable.entries[fd].used = 1;
+
 	//Check if integrity has not been established
 	if(inodes[iNodeIndex].has_integrity == FALSE) return -2;
 
-	//Read contesnts of file to a buffer
+	//Read contents of file to a buffer
 	unsigned int sizeOfFile = inodes[iNodeIndex].size;
 	unsigned char buffer[sizeOfFile];
 	int ret = readFile(fd, buffer, sizeOfFile);
@@ -553,12 +573,12 @@ int checkFile (char * fileName)
 	//perform integrity check
 	if(inodes[iNodeIndex].integrity != CRC32(buffer, sizeOfFile)){
 		//file corrupted
-		closeFile(fd);
+		closeFileIntegrity(fd);
 		return -1;
 	} 
 
 	//file preserves integrity
-	closeFile(fd);
+	closeFileIntegrity(fd);
     return 0;
 }
 
@@ -566,7 +586,6 @@ int checkFile (char * fileName)
  * @brief	Include integrity on a file.
  * @return	0 if success, -1 if the file does not exists, -2 in case of error.
  */
-
 int includeIntegrity (char * fileName)
 {
 	//Check if filename exists
@@ -632,12 +651,19 @@ int openFileIntegrity(char *fileName)
 	//file does not exist
 	if(iNodeIndex == -1) return -1;
 
-	//check if file has integrity
-	if(inodes[iNodeIndex].has_integrity == FALSE){
-		return -3; //Cannot open a file without integrity
+	//check if inode is soft link
+	if(inodes[iNodeIndex].soft_link != -1){
+		//look for original file
+		iNodeIndex = inodes[iNodeIndex].soft_link;
 	}
 
-	//check file integrity
+	//check if file has integrity
+	if(inodes[iNodeIndex].has_integrity == FALSE){
+		return -3; //NF8: Cannot open a file without integrity
+	}
+
+	//check file integrity 
+	//(checkFile() can be called because file has not officially been open)
 	int ret = checkFile(fileName);
 	if(ret == -1){	
 		return -2; //File is corrupted
@@ -645,13 +671,9 @@ int openFileIntegrity(char *fileName)
 		return -3; //Other error
 	}
 
-	//check if inode is soft link
-	if(inodes[iNodeIndex].soft_link != -1){
-		//look for original file
-		iNodeIndex = inodes[iNodeIndex].soft_link;
-	}
+	//Perform operations on filetable to open the file
 
-	//look for free entry in SFT
+	//look for free entry in filetable
 	int fileEntryIndex = -1;
 	for(int i = 0; i < MAX_FILES; i++){
 		if(filetable.entries[i].used == 0){
@@ -676,10 +698,24 @@ int openFileIntegrity(char *fileName)
  * @brief	Closes a file and updates its integrity.
  * @return	0 if success, -1 otherwise.
  */
+/*
+*NF9 La integridad de un fichero se calcular´a siempre en el cierre de este (Funci´on
+closeFileIntegrity).
+	-include integrity inside closeFileIntegrity
+
+*NF10 Si se quiere abrir un fichero sin integridad con las funciones de integridad,
+debera añadirse su integridad previamente (funcion includeIntegrity).
+	-llamada previa e includeFIleIntegrity
+
+*NF11 Un fichero no se puede abrir con la funcion de integridad (openFileIntegrity) 
+y cerrarse sin integridad (closeFile).
+	-check en closeFile to only allow close files without integrity
+
+*/
 int closeFileIntegrity(int fileDescriptor)
 {
 
-	//check if file has integrity
+	//NF12: check if file has integrity
 	if(inodes[filetable.entries[fileDescriptor].inodeIdx].has_integrity == FALSE){
 		return -1;
 	}
@@ -691,7 +727,6 @@ int closeFileIntegrity(int fileDescriptor)
 
 	//check if retrieved contents are same as size
 	if(ret != sizeOfFile){
-		closeFile(fileDescriptor);
 		return -1;
 	}
 
