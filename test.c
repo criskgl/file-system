@@ -537,6 +537,22 @@ void testCreateMoreThanMaxFiles(){
 	}
 }
 
+void testIntegrityEmptyFile(){ 
+	char* filename = "testIntegrityEmptyFile.txt";
+    createFile(filename);
+
+	includeIntegrity(filename);
+
+	int ret = checkFile(filename);
+
+	if (ret == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testIntegrityEmptyFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testIntegrityEmptyFile ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}
+}
+
 
 int main()
 {
@@ -619,9 +635,10 @@ int main()
 	////
 	testOpenFileWithIntegrity();
 	////
+	testIntegrityEmptyFile();
+	////
 	testCreateMoreThanMaxFiles();
 	////
-
 
 	ret = unmountFS();
 	if (ret != 0)
