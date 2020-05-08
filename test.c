@@ -572,6 +572,26 @@ void testIntegrityEmptyFile(){
 	}
 }
 
+void testDeviceTooBig(){ 
+	int ret = mkFS(800);
+	if (ret == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testDeviceTooBig ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testDeviceTooBig ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}
+}
+
+void testDeviceTooSmall(){ 
+	int ret = mkFS(300);
+	if (ret == 0)
+	{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testDeviceTooSmall ", ANSI_COLOR_RED, "FAILED\n", ANSI_COLOR_RESET);
+	}else{
+		fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST testDeviceTooSmall ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
+	}
+}
+
 
 int main()
 {
@@ -655,6 +675,10 @@ int main()
 	testOpenFileWithIntegrity();
 	////
 	testIntegrityEmptyFile();
+	////
+	testDeviceTooBig();
+	////
+	testDeviceTooSmall();
 	////
 	testCreateMoreThanMaxFiles();
 	////
