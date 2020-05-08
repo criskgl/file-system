@@ -452,7 +452,7 @@ void testOpenFileWithIntegrity(){
 
 // NF10: Check if openFileIntegrity() cannot open a file without integrity
 void testOpenFileIntegrityNoIntegrity(){ 
-	char* filename = "testOpenFileIntegrityNoIntegrity.txt";
+	char* filename = "testOpenFileIntegrityNoIntegrity";
     createFile(filename);
 
 	int fd = openFile(filename);
