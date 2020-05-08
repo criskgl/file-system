@@ -576,10 +576,6 @@ int main()
 	}
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST mountFS ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
-	///////
-
-	//fileNameAlreadyExists();
-
 	ret = createFile("test.txt");
 	if (ret != 0)
 	{
@@ -588,33 +584,35 @@ int main()
 	}
 	fprintf(stdout, "%s%s%s%s%s", ANSI_COLOR_BLUE, "TEST createFile ", ANSI_COLOR_GREEN, "SUCCESS\n", ANSI_COLOR_RESET);
 
-	//////
+	////
+	fileNameAlreadyExists();
+	////
 	createFileWithNameTooLong();
-	//////
+	////
 	fileWasDeleted();
-	//////
+	////
 	testOpenFile();
-	//////
+	////
 	testCloseFile();
-	/////
+	////
 	testWriteLessThanBlock();
-	/////
+	////
 	testWriteMoreThanBlock();
-	/////
+	////
 	testReadFileNoOffset();
-	/////
+	////
 	testReadFileOffsetAtEnd();
-	/////
+	////
 	testReadFile5Blocks();
-	/////
+	////
 	testLseekEnd();
-	/////
+	////
 	testLseekBegin();
-	/////
+	////
 	testLseekAfterSize();
-	/////
+	////
 	testLseekBelow0();
-	/////
+	////
 	testCreateLn();
 	////
 	testRemoveLn();
